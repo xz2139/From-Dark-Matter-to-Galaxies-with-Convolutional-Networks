@@ -1,8 +1,9 @@
-# darkness_beyond_time
-dark matter simulation mapping to full cosmological similution 
+# Darkness Beyond Time 
 
-Goal: estimate cosmological parameters (number of galaxies, dark matter mass, etc.) from dark matter simulation.
+### Topic: dark matter simulation mapping to full cosmological similution 
 
-Data: 6 simulations from Illustris Project
+### Goal: estimate cosmological parameters (number of galaxies, dark matter mass, etc.) from dark matter simulation.
 
-Baseline Model: U-Net
+### Data: 6 simulations from Illustris Project
+
+### Baseline Model: U-Net
