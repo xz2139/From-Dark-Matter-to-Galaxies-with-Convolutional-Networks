@@ -54,9 +54,9 @@ class SimpleUnet(nn.Module):
             self.conv_layer(64, 32),
             self.up_conv_layer(32, 32, 3),
             self.conv_layer(32, 16),
-            self.up_conv_layer(16, 16, 2),
+            self.up_conv_layer(16, 16, 3),
             self.conv_layer(16, 8),
-            self.up_conv_layer(8, 8, 2),
+            self.up_conv_layer(8, 8, 3),
             self.conv_layer(8, 4),
             self.conv_layer(4, 1)
         )
@@ -64,8 +64,8 @@ class SimpleUnet(nn.Module):
     def conv_layer(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, bias=True):
         layers = nn.Sequential(
         nn.Conv3d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=bias),
-        nn.BatchNorm3d(out_channels),
-        nn.LeakyReLU())
+        # nn.BatchNorm3d(out_channels),
+        nn.ReLU())
         return layers
     
     def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, bias=True):
@@ -73,8 +73,8 @@ class SimpleUnet(nn.Module):
             nn.Upsample(scale_factor=2, mode='nearest'),
             # should be feat_in*2 or feat_in
             nn.Conv3d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm3d(out_channels),
-            nn.LeakyReLU())
+            # nn.BatchNorm3d(out_channels),
+            nn.ReLU())
         return layers
     
     

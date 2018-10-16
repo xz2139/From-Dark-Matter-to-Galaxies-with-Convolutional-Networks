@@ -19,7 +19,7 @@ from torch.utils import data
 import random
 import numpy as np
 from itertools import product
-
+import argparse
 
 from args import args
 from train_f import *
@@ -28,6 +28,58 @@ from Models import SimpleUnet
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="main.py")
+    parser.add_argument('--mini', type=int, default=0,
+                        help='whether to use mini dataset.')
+    parser.add_argument('--medium', type=int, default=0,
+                        help='whether to use medium dataset.')
+    
+    return parser.parse_args()
+
+
+print("arguments: %s" %(args))
+
+def initial_loss(train_loader, val_loader, model, criterion):
+    batch_time = AverageMeter()
+    train_losses = AverageMeter()
+    val_losses = AverageMeter()
+
+    # switch to train mode
+    model.eval()
+    
+    with torch.no_grad():
+        for i, (input, target) in enumerate(train_loader):
+            # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
+            input = input.unsqueeze(dim = 1).to(device).float()
+            target = target.unsqueeze(dim = 1).to(device).float()
+            # compute output
+            output = model(input)
+            
+            loss = criterion(output, target)
+            # measure accuracy and record loss
+            train_losses.update(loss.item(), input.size(0))
+
+        for i, (input, target) in enumerate(val_loader):
+            # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
+            input = input.unsqueeze(dim = 1).to(device).float()
+            target = target.unsqueeze(dim = 1).to(device).float()
+            # compute output
+            output = model(input)
+            
+            loss = criterion(output, target)
+            # measure accuracy and record loss
+            val_losses.update(loss.item(), input.size(0))
+
+
+        
+        print('Training initial Loss {train_loss.avg:.4f}\t'
+        	'Validation initial Loss {val_loss.avg:.4f}\t'.format(train_loss=train_losses, val_loss = val_losses))
+
+
+
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -49,9 +101,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         target = target.unsqueeze(dim = 1).to(device).float()
         # compute output
         output = model(input)
-        
+        #print(torch.nonzero(target).size())
         loss = criterion(output, target)
-
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
 
@@ -72,7 +123,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses))
 
-
+    print('Epoch Train: Loss {loss.avg:.4f}\t'.format(loss=losses))
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -80,19 +131,19 @@ def validate(val_loader, model, criterion):
 
 
     # switch to evaluate mode
+    
     model.eval()
-
     with torch.no_grad():
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
             input = input.unsqueeze(dim = 1).to(device).float()
             target = target.unsqueeze(dim = 1).to(device).float()
-
+            
+            
             # compute output
             output = model(input)
             
             loss = criterion(output, target)
-
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
 
@@ -101,32 +152,36 @@ def validate(val_loader, model, criterion):
             end = time.time()
 
             
-        print('Test: Time {batch_time.val:.3f} \t\t\t\t\t\t\t\t'
-              'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(batch_time=batch_time, loss=losses))
+    print('Epoch Test: Loss {loss.avg:.4f}\t'.format(loss=losses))
 
-    return 
 def main():
 
+    params = parse_args()
+    mini = params.mini
+    medium = params.medium
     #index for the cube, each tuple corresponds to a cude
     #test data
-    # train_data = [(800, 640, 224), (832,640,224)]
-    # val_data = [(800, 640, 224)]
-    # test_data = [(800, 640, 224)]
+    if mini:
+        train_data = [(832, 640, 224),(864, 640, 224)]
+        val_data = [(832, 640, 224),(864, 640, 224)]
+        test_data = [(832, 640, 224),(864, 640, 224)]
+    else:
+        if medium:
+            data_range = 150
+        else:
+            data_range = 1024
 
-    #all data
-    pos=list(np.arange(0,150,32))
-    ranges=list(product(pos,repeat=3))
-    # random.shuffle(ranges)
-    train_data = ranges[:int(np.round(len(ranges)*0.6))]
-    val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
-    test_data = ranges[int(np.round(len(ranges)*0.8)):]
+        pos=list(np.arange(0,data_range,32))
+        ranges=list(product(pos,repeat=3))
+        random.shuffle(ranges)
+        train_data = ranges[:int(np.round(len(ranges)*0.6))]
+        val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
+        test_data = ranges[int(np.round(len(ranges)*0.8)):]
 
-    #build dataloader
-    params = {'batch_size': 50,
-          'shuffle': False,
-          #'shuffle': True,
+    # #build dataloader
+    params = {'batch_size': 16,
+          'shuffle': True,
           'num_workers':20}
-    max_epochs = 100
 
     training_set, validation_set = Dataset(train_data), Dataset(val_data)
     testing_set= Dataset(test_data)
@@ -134,24 +189,28 @@ def main():
     validation_generator = data.DataLoader(validation_set, **params)
     testing_generator = data.DataLoader(testing_set, **params)
 
+    # for i, (input, target) in enumerate(training_generator):
+    #     print('input')
+    #     print(input)
+    #     print('target')
+    #     print(target)
 
-    #set up device
+    # #set up device
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    #build model
+    # #build model
     dim = 1
     model = SimpleUnet(dim).to(device)
     criterion = nn.MSELoss().to(device) #yueqiu
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                    momentum=args.momentum,
+    optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                     weight_decay=args.weight_decay)
-
+    initial_loss(training_generator, validation_generator, model, criterion)
 
     for epoch in range(args.start_epoch, args.epochs):
-	    adjust_learning_rate(optimizer, epoch)
-	    train(training_generator, model, criterion, optimizer, epoch)
-	    # evaluate on validation set
-	    validate(validation_generator, model, criterion)
+        adjust_learning_rate(optimizer, epoch)
+        train(training_generator, model, criterion, optimizer, epoch)
+        # evaluate on validation set
+        validate(validation_generator, model, criterion)
 
 
 
