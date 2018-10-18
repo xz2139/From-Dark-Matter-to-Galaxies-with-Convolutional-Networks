@@ -24,7 +24,7 @@ import argparse
 from args import args
 from train_f import *
 from Dataset import Dataset
-from Models import SimpleUnet
+from Models import *
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
@@ -36,11 +36,18 @@ def parse_args():
                         help='whether to use mini dataset.')
     parser.add_argument('--medium', type=int, default=0,
                         help='whether to use medium dataset.')
-    
+    parser.add_argument('--lr', type=float, default=0.01,
+                        help='learning rate')
+    parser.add_argument('--model_idx', type=int, default=0,
+                        help='0:Unet, 1:baseline')
+    parser.add_argument('--epochs', type=int, default=20,
+                        help='number of epochs')
+    parser.add_argument('--batch_size', type=int, default=16,
+                        help='Batch size.')
     return parser.parse_args()
 
 
-print("arguments: %s" %(args))
+
 
 def initial_loss(train_loader, val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -64,6 +71,7 @@ def initial_loss(train_loader, val_loader, model, criterion):
 
         for i, (input, target) in enumerate(val_loader):
             # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
+
             input = input.unsqueeze(dim = 1).to(device).float()
             target = target.unsqueeze(dim = 1).to(device).float()
             # compute output
@@ -157,8 +165,13 @@ def validate(val_loader, model, criterion):
 def main():
 
     params = parse_args()
+    print("arguments: %s" %(params))
     mini = params.mini
     medium = params.medium
+    lr = params.lr
+    model_idx = params.model_idx
+    epochs = params.epochs
+    batch_size = params.batch_size
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -179,7 +192,7 @@ def main():
         test_data = ranges[int(np.round(len(ranges)*0.8)):]
 
     # #build dataloader
-    params = {'batch_size': 16,
+    params = {'batch_size': batch_size,
           'shuffle': True,
           'num_workers':20}
 
@@ -200,14 +213,17 @@ def main():
 
     # #build model
     dim = 1
-    model = SimpleUnet(dim).to(device)
+    if model_idx == 0:
+        model = SimpleUnet(dim).to(device)
+    elif model_idx == 1:
+        model = Baseline(dim, dim).to(device)
     criterion = nn.MSELoss().to(device) #yueqiu
-    optimizer = torch.optim.Adam(model.parameters(), args.lr,
+    optimizer = torch.optim.Adam(model.parameters(), lr,
                                     weight_decay=args.weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion)
 
-    for epoch in range(args.start_epoch, args.epochs):
-        adjust_learning_rate(optimizer, epoch)
+    for epoch in range(epochs):
+        adjust_learning_rate(lr, optimizer, epoch)
         train(training_generator, model, criterion, optimizer, epoch)
         # evaluate on validation set
         validate(validation_generator, model, criterion)

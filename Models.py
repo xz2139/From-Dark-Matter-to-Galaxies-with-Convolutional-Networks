@@ -24,10 +24,10 @@ class Baseline(nn.Module):
         '''
         self.draft_model = nn.Sequential(
             nn.Conv3d(in_ch, out_ch, 3, stride=1, padding=1),
-            nn.BatchNorm3d(out_ch),
+            #nn.BatchNorm3d(out_ch),
 #             nn.AvgPool3d(3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv3d(in_ch, out_ch, 3, stride=1, padding=1),
+            #nn.Conv3d(in_ch, out_ch, 3, stride=1, padding=1),
             nn.BatchNorm3d(out_ch),
 #             nn.AvgPool3d(3, stride=1, padding=1),
             nn.ReLU(inplace=True)
@@ -68,13 +68,11 @@ class SimpleUnet(nn.Module):
         nn.ReLU())
         return layers
     
-    def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, bias=True):
+    def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=2, padding=1, output_padding=1, bias=True):
         layers = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='nearest'),
-            # should be feat_in*2 or feat_in
-            nn.Conv3d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
-            # nn.BatchNorm3d(out_channels),
-            nn.ReLU())
+        nn.ConvTranspose3d(in_channels,out_channels, kernel_size=kernel_size, stride=stride, padding=padding,output_padding=output_padding),
+#       nn.BatchNorm3d(out_channels),
+        nn.ReLU())
         return layers
     
     
