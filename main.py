@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
+import torch.nn.functional as F
+
 # import torch.utils.data.distributed
 # import torchvision.transforms as transforms
 # import torchvision.datasets as datasets
@@ -52,8 +54,10 @@ def parse_args():
 def initial_loss(train_loader, val_loader, model, criterion):
     batch_time = AverageMeter()
     train_losses = AverageMeter()
-    val_losses = AverageMeter()
-
+    losses = AverageMeter()
+    correct = 0
+    correct_1 = 0
+    total = 0
     # switch to train mode
     model.eval()
     
@@ -61,11 +65,14 @@ def initial_loss(train_loader, val_loader, model, criterion):
         for i, (input, target) in enumerate(train_loader):
             # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
             input = input.unsqueeze(dim = 1).to(device).float()
-            target = target.unsqueeze(dim = 1).to(device).float()
+            #target = target.unsqueeze(dim = 1).to(device).float()
+            target = target.to(device).long()
             # compute output
             output = model(input)
-            
+            # print("target1: ", target.size())
+            # print("output: ", output.size())
             loss = criterion(output, target)
+            #print(loss)
             # measure accuracy and record loss
             train_losses.update(loss.item(), input.size(0))
 
@@ -73,18 +80,34 @@ def initial_loss(train_loader, val_loader, model, criterion):
             # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
 
             input = input.unsqueeze(dim = 1).to(device).float()
-            target = target.unsqueeze(dim = 1).to(device).float()
+            #target = target.unsqueeze(dim = 1).to(device).float()
+            target = target.to(device).long()
             # compute output
             output = model(input)
             
             loss = criterion(output, target)
             # measure accuracy and record loss
-            val_losses.update(loss.item(), input.size(0))
+            losses.update(loss.item(), input.size(0))
+            outputs = F.softmax(output, dim=1)
+            predicted = outputs.max(1, keepdim=True)[1]
+            total += np.prod(target.shape)
+            correct += predicted.eq(target.view_as(predicted)).sum().item()
+            #correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
+#             output=0*output
+            loss = criterion(output, target)
+            # measure accuracy and record loss
+            losses.update(loss.item(), input.size(0))
 
+            # measure elapsed time
+            #batch_time.update(time.time() - end)
+            #end = time.time()
+
+            
+    print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
 
         
-        print('Training initial Loss {train_loss.avg:.4f}\t'
-        	'Validation initial Loss {val_loss.avg:.4f}\t'.format(train_loss=train_losses, val_loss = val_losses))
+        # print('Training initial Loss {train_loss.avg:.4f}\t'
+        # 	'Validation initial Loss {val_loss.avg:.4f}\t'.format(train_loss=train_losses, val_loss = val_losses))
 
 
 
@@ -106,9 +129,11 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
         input = input.unsqueeze(dim = 1).to(device).float()
-        target = target.unsqueeze(dim = 1).to(device).float()
+        #target = target.unsqueeze(dim = 1).to(device).float()
+        target = target.to(device).long()
         # compute output
         output = model(input)
+
         #print(torch.nonzero(target).size())
         loss = criterion(output, target)
         # measure accuracy and record loss
@@ -134,23 +159,57 @@ def train(train_loader, model, criterion, optimizer, epoch):
     print('Epoch Train: Loss {loss.avg:.4f}\t'.format(loss=losses))
 
 def validate(val_loader, model, criterion):
+    # batch_time = AverageMeter()
+    # losses = AverageMeter()
+
+
+    # # switch to evaluate mode
+    
+    # model.eval()
+    # with torch.no_grad():
+    #     end = time.time()
+    #     for i, (input, target) in enumerate(val_loader):
+    #         input = input.unsqueeze(dim = 1).to(device).float()
+    #         #target = target.unsqueeze(dim = 1).to(device).float()
+    #         target = target.to(device).to(device).long()
+            
+    #         # compute output
+    #         output = model(input)
+            
+    #         loss = criterion(output, target)
+    #         # measure accuracy and record loss
+    #         losses.update(loss.item(), input.size(0))
+
+    #         # measure elapsed time
+    #         batch_time.update(time.time() - end)
+    #         end = time.time()
+
+            
+    #print('Epoch Test: Loss {loss.avg:.4f}\t'.format(loss=losses))
+
     batch_time = AverageMeter()
     losses = AverageMeter()
-
-
-    # switch to evaluate mode
-    
+    # switch to evaluate mode  
+    correct = 0
+    correct_1 = 0
+    total = 0
     model.eval()
     with torch.no_grad():
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
             input = input.unsqueeze(dim = 1).to(device).float()
-            target = target.unsqueeze(dim = 1).to(device).float()
+#             target = target.unsqueeze(dim = 1).to(device).float()
+            target = target.to(device).long()
             
             
             # compute output
             output = model(input)
-            
+            outputs = F.softmax(output, dim=1)
+            predicted = outputs.max(1, keepdim=True)[1]
+            total += np.prod(target.shape)
+            correct += predicted.eq(target.view_as(predicted)).sum().item()
+            #correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
+#             output=0*output
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
@@ -160,7 +219,8 @@ def validate(val_loader, model, criterion):
             end = time.time()
 
             
-    print('Epoch Test: Loss {loss.avg:.4f}\t'.format(loss=losses))
+    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
+    #print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, ))
 
 def main():
 
@@ -217,7 +277,8 @@ def main():
         model = SimpleUnet(dim).to(device)
     elif model_idx == 1:
         model = Baseline(dim, dim).to(device)
-    criterion = nn.MSELoss().to(device) #yueqiu
+    #criterion = nn.MSELoss().to(device) #yueqiu
+    criterion = nn.CrossEntropyLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr,
                                     weight_decay=args.weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion)
