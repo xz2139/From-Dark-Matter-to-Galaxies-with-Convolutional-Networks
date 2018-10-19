@@ -92,8 +92,7 @@ def initial_loss(train_loader, val_loader, model, criterion):
             predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
-            #correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
-#             output=0*output
+            correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
@@ -103,7 +102,8 @@ def initial_loss(train_loader, val_loader, model, criterion):
             #end = time.time()
 
             
-    print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
+    #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
+    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = correct_1/total*100))
 
         
         # print('Training initial Loss {train_loss.avg:.4f}\t'
@@ -208,19 +208,18 @@ def validate(val_loader, model, criterion):
             predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
-            #correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
-#             output=0*output
+            correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
 
             # measure elapsed time
-            batch_time.update(time.time() - end)
-            end = time.time()
+            #batch_time.update(time.time() - end)
+            #end = time.time()
 
             
-    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
-    #print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, ))
+    #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
+    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = correct_1/total*100))
 
 def main():
 
