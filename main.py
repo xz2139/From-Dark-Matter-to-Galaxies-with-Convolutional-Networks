@@ -46,6 +46,8 @@ def parse_args():
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size.')
+    parser.add_argument('--loss_weight', type=int, default=16,
+                        help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
     return parser.parse_args()
 
 
@@ -191,8 +193,9 @@ def validate(val_loader, model, criterion):
     losses = AverageMeter()
     # switch to evaluate mode  
     correct = 0
-    correct_1 = 0
+    tp = 0
     total = 0
+    ptotal = 0
     model.eval()
     with torch.no_grad():
         end = time.time()
@@ -208,7 +211,8 @@ def validate(val_loader, model, criterion):
             predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
-            correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
+            tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted) >= 1)).sum().item()
+            ptotal = (target.view_as(predicted) >= 1).sum().item()
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
@@ -217,9 +221,11 @@ def validate(val_loader, model, criterion):
             #batch_time.update(time.time() - end)
             #end = time.time()
 
-            
+    print('tp=', tp)
+    print('ptotal= ', ptotal)
+    print('total= ', total)
     #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
-    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = correct_1/total*100))
+    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = tp/ptotal*100))
 
 def main():
 
@@ -231,6 +237,7 @@ def main():
     model_idx = params.model_idx
     epochs = params.epochs
     batch_size = params.batch_size
+    loss_weight = params.loss_weight
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -277,7 +284,9 @@ def main():
     elif model_idx == 1:
         model = Baseline(dim, dim).to(device)
     #criterion = nn.MSELoss().to(device) #yueqiu
-    criterion = nn.CrossEntropyLoss().to(device)
+    #weight = torch.Tensor([0.99,0.05,0.05])
+
+    criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr,
                                     weight_decay=args.weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion)

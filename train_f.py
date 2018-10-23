@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from args import args
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
@@ -46,3 +47,7 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
+#output a tensor equals to normalized [x, loss_weight * x,loss_weight * x]
+def get_loss_weight(loss_weight):
+    piece = 1/(2 * loss_weight + 1)
+    return (torch.from_numpy(piece * np.array([1,loss_weight, loss_weight]))).float()
