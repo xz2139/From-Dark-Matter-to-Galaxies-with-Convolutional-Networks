@@ -1,9 +1,13 @@
-# darkness_beyond_time
-dark matter simulation mapping to full cosmological similution 
+# Darkness Beyond Time 
 
-Goal: estimate cosmological parameters (number of galaxies, dark matter mass, etc.) from dark matter simulation.
+### Topic: dark matter simulation mapping to full cosmological similution 
 
-Data: 6 simulations from Illustris Project
+### Goal: estimate cosmological parameters (number of galaxies, dark matter mass, etc.) from dark matter simulation.
+
+### Data: 6 simulations from Illustris Project
+
+### Baseline Model: U-Net
+
 
 Baseline Model: U-Net
 
@@ -15,3 +19,4 @@ Usage: python main.py
 --batch_size  (default 16)
 --loss wight: weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x] default 16
 --model_idx 0: Unet 1:baseline  (default 0)
+
