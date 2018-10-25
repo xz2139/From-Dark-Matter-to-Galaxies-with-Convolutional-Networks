@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument('--mini', type=int, default=0,
                         help='whether to use mini dataset.')
     parser.add_argument('--medium', type=int, default=0,
-                        help='whether to use medium dataset.')
+                        help='whether to use medium dataset.(4% of the data)')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
@@ -212,7 +212,7 @@ def validate(val_loader, model, criterion):
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
             tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted) >= 1)).sum().item()
-            ptotal = (target.view_as(predicted) >= 1).sum().item()
+            ptotal += (target.view_as(predicted) >= 1).sum().item()
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
