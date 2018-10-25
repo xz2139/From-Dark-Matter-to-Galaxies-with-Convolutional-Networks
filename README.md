@@ -9,11 +9,11 @@
 ### Baseline Model: U-Net
 
 
-###Usage: python main.py
-###--mini  1 use only two cubes to train  (default 0)
-###--medium 1 use 4% of of the data to train  (default 0)
-###--lr  (default 0.01)
-###--epochs  (default 20)
-###--batch_size  (default 16)
-###--loss wight: weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x] default 16
-###--model_idx 0: Unet 1:baseline  (default 0)
+### Usage: python main.py
+### --mini  1 use only two cubes to train  (default 0)
+### --medium 1 use 4% of of the data to train  (default 0)
+### --lr  (default 0.01)
+### --epochs  (default 20)
+### --batch_size  (default 16)
+### --loss wight: weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x] default 16
+### --model_idx 0: Unet 1:baseline  (default 0)
