@@ -23,21 +23,34 @@ import numpy as np
 from itertools import product
 import argparse
 
-from args import args
 from train_f import *
 from Dataset import Dataset
 from Models import *
+from args import args
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 
+# the following four variables are global variables that record the statistics 
+# for each epoch so that the plot can be produced
+TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL = [],[],[],[]
+
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="main.py")
+
+    
     parser.add_argument('--mini', type=int, default=0,
                         help='whether to use mini dataset.')
     parser.add_argument('--medium', type=int, default=0,
                         help='whether to use medium dataset.(4% of the data)')
+    parser.add_argument('--weight_decay', type=float, default=0.0,
+                        help='')
+    parser.add_argument('--print_freq', type=int, default=400,
+                        help='')
+    parser.add_argument('--fig_dir', default='./fig/',
+                        help='directory to save the training plot')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
@@ -46,7 +59,7 @@ def parse_args():
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size.')
-    parser.add_argument('--loss_weight', type=int, default=16,
+    parser.add_argument('--loss_weight', type=int, default=300,
                         help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
     return parser.parse_args()
 
@@ -54,12 +67,13 @@ def parse_args():
 
 
 def initial_loss(train_loader, val_loader, model, criterion):
-    batch_time = AverageMeter()
+    #AverageMeter is a object that record the sum, avg, count and val of the target stats
     train_losses = AverageMeter()
-    losses = AverageMeter()
+    val_losses = AverageMeter()  
     correct = 0
-    correct_1 = 0
-    total = 0
+    ptotal = 0  #count of all positive predictions
+    tp = 0    #true positive
+    total = 0 #total count of data
     # switch to train mode
     model.eval()
     
@@ -74,7 +88,6 @@ def initial_loss(train_loader, val_loader, model, criterion):
             # print("target1: ", target.size())
             # print("output: ", output.size())
             loss = criterion(output, target)
-            #print(loss)
             # measure accuracy and record loss
             train_losses.update(loss.item(), input.size(0))
 
@@ -89,31 +102,44 @@ def initial_loss(train_loader, val_loader, model, criterion):
             
             loss = criterion(output, target)
             # measure accuracy and record loss
-            losses.update(loss.item(), input.size(0))
+            val_losses.update(loss.item(), input.size(0))
             outputs = F.softmax(output, dim=1)
             predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
-            correct_1 += torch.mul(predicted.eq(target.view_as(predicted)),(target >= 1)).sum().item()
+            ptotal += (target.view_as(predicted) >= 1).sum().item()
+            tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted)>= 1)).sum().item()
+            # print('predicted.size() = ',  predicted.size())
+            # print('target.size() = ',  target.size() )
+            # print(torch.mul(predicted.view_as(target).eq(target),(target >= 1)).size())
+            # print('xinyue tp = ', (torch.mul(predicted,target.view_as(predicted))).sum().item())
+            # print('xinyue ptotal = ', (target.view_as(predicted) >= 1).sum().item())
+            # equal = predicted.eq(target).data
+            # multi = torch.mul(predicted.eq(target),(target >= 1)).data
+            # print('equal = ', equal[0:10, 0:20, 0])
+            # print('multi = ', multi[0:10, 0:20, 0])
             loss = criterion(output, target)
             # measure accuracy and record loss
-            losses.update(loss.item(), input.size(0))
-
-            # measure elapsed time
-            #batch_time.update(time.time() - end)
-            #end = time.time()
-
-            
-    #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
-    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = correct_1/total*100))
-
-        
-        # print('Training initial Loss {train_loss.avg:.4f}\t'
-        # 	'Validation initial Loss {val_loss.avg:.4f}\t'.format(train_loss=train_losses, val_loss = val_losses))
+            val_losses.update(loss.item(), input.size(0))  
+    # print('tp = ', tp)
+    # print('ptotal = ', ptotal)
+    # print('total = ', total)
+    # print('correct = ', correct)
+    recall =  tp/ptotal*100  #recall = true positive / count of all positive predictions  
+    acc = correct/total*100
+    TRAIN_LOSS.append(train_losses.avg)
+    VAL_LOSS.append(val_losses.avg)
+    VAL_RECALL.append(recall)
+    VAL_ACC.append(acc)
+    print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f},\
+     Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t'.format(train_losses = train_losses, \
+        val_losses=val_losses,acc=acc, recall = recall))
 
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
+
+
     batch_time = AverageMeter()
     losses = AverageMeter()
     data_time = AverageMeter()
@@ -126,8 +152,6 @@ def train(train_loader, model, criterion, optimizer, epoch):
     for i, (input, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-
-
 
         # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
         input = input.unsqueeze(dim = 1).to(device).float()
@@ -157,45 +181,19 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses))
-
+    TRAIN_LOSS.append(losses.avg)
     print('Epoch Train: Loss {loss.avg:.4f}\t'.format(loss=losses))
 
 def validate(val_loader, model, criterion):
-    # batch_time = AverageMeter()
-    # losses = AverageMeter()
 
-
-    # # switch to evaluate mode
-    
-    # model.eval()
-    # with torch.no_grad():
-    #     end = time.time()
-    #     for i, (input, target) in enumerate(val_loader):
-    #         input = input.unsqueeze(dim = 1).to(device).float()
-    #         #target = target.unsqueeze(dim = 1).to(device).float()
-    #         target = target.to(device).to(device).long()
-            
-    #         # compute output
-    #         output = model(input)
-            
-    #         loss = criterion(output, target)
-    #         # measure accuracy and record loss
-    #         losses.update(loss.item(), input.size(0))
-
-    #         # measure elapsed time
-    #         batch_time.update(time.time() - end)
-    #         end = time.time()
-
-            
-    #print('Epoch Test: Loss {loss.avg:.4f}\t'.format(loss=losses))
 
     batch_time = AverageMeter()
     losses = AverageMeter()
     # switch to evaluate mode  
     correct = 0
-    tp = 0
-    total = 0
-    ptotal = 0
+    tp = 0  #true positive
+    total = 0 #total count of data
+    ptotal = 0 #count of all positive predictions
     model.eval()
     with torch.no_grad():
         end = time.time()
@@ -211,21 +209,20 @@ def validate(val_loader, model, criterion):
             predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
-            tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted) >= 1)).sum().item()
             ptotal += (target.view_as(predicted) >= 1).sum().item()
+            tp += torch.mul(predicted.eq(target.view_as(predicted)) ,(target.view_as(predicted)>= 1)).sum().item()
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
 
-            # measure elapsed time
-            #batch_time.update(time.time() - end)
-            #end = time.time()
+    recall =  tp/ptotal*100  #recall = true positive / count of all positive predictions  
+    acc = correct/total*100
+    VAL_LOSS.append(losses.avg)
+    VAL_RECALL.append(recall)
+    VAL_ACC.append(acc)
 
-    print('tp=', tp)
-    print('ptotal= ', ptotal)
-    print('total= ', total)
     #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
-    print('Epoch Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = tp/ptotal*100))
+    print('Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = tp/ptotal*100))
 
 def main():
 
@@ -238,6 +235,9 @@ def main():
     epochs = params.epochs
     batch_size = params.batch_size
     loss_weight = params.loss_weight
+    weight_decay = params.weight_decay
+    fig_dir = params.fig_dir
+
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -268,12 +268,6 @@ def main():
     validation_generator = data.DataLoader(validation_set, **params)
     testing_generator = data.DataLoader(testing_set, **params)
 
-    # for i, (input, target) in enumerate(training_generator):
-    #     print('input')
-    #     print(input)
-    #     print('target')
-    #     print(target)
-
     # #set up device
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -288,7 +282,7 @@ def main():
 
     criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr,
-                                    weight_decay=args.weight_decay)
+                                    weight_decay=weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion)
 
     for epoch in range(epochs):
@@ -296,7 +290,7 @@ def main():
         train(training_generator, model, criterion, optimizer, epoch)
         # evaluate on validation set
         validate(validation_generator, model, criterion)
-
+    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, fig_dir)
 
 
 if __name__ == '__main__':
