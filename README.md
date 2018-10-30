@@ -7,3 +7,11 @@
 ### Data: 6 simulations from Illustris Project
 
 ### Baseline Model: U-Net
+
+
+
+Update on 10/30:
+
+To generate data for training, the whole simulation was chopped into 32^3=32768 boxes. Each Box is splitted into 32^3=32768 sub-boxes. We count the number of data matters and subhalos within each sub-boxes. And store each box as array of size (32, 32, 32). We discovered that our target data are exceptionally sparse as zeros in targets are about 99.5% among all sub-boxes. Hence we first convert it to a classification problem, reclassified the subhalo array to have 0 when there is no galaxy in the sub-box and 1 when there is 1 or more galaxies. The reclassifies array is still of dimension (32, 32, 32) but with only zeros and ones. 
+
+We first finished our baseline Model with 5-Layer U-Net. Trained on 60% of all dataset for 240 epoches. We also played around with the weight of cross entropy loss to counterpart the sparsity. The model reached accuracy of 99.29 percent while having a recall of 62 percent and percision of 29 percent. We also tried with alternative models for this problem. 
