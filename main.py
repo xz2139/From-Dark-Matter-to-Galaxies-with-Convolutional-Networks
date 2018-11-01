@@ -43,15 +43,15 @@ def parse_args():
     
     parser.add_argument('--mini', type=int, default=0,
                         help='whether to use mini dataset.')
+    parser.add_argument('--medium1', type=int, default=0,
+                        help='whether to use medium dataset.(2% of the data)')
     parser.add_argument('--medium', type=int, default=0,
-                        help='whether to use medium dataset.(4% of the data)')
+                        help='whether to use medium dataset.(12.5% of the data)')
     parser.add_argument('--weight_decay', type=float, default=0.0,
                         help='')
     parser.add_argument('--print_freq', type=int, default=400,
                         help='')
-    parser.add_argument('--fig_dir', default='./fig/',
-                        help='directory to save the training plot')
-    parser.add_argument('--lr', type=float, default=0.01,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
                         help='0:Unet, 1:baseline')
@@ -61,6 +61,7 @@ def parse_args():
                         help='Batch size.')
     parser.add_argument('--loss_weight', type=int, default=300,
                         help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
+    
     return parser.parse_args()
 
 
@@ -137,7 +138,7 @@ def initial_loss(train_loader, val_loader, model, criterion):
 
 
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, print_freq):
 
 
     batch_time = AverageMeter()
@@ -175,7 +176,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.print_freq == 0:
+        if i % print_freq == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
@@ -230,14 +231,14 @@ def main():
     print("arguments: %s" %(params))
     mini = params.mini
     medium = params.medium
+    medium1 = params.medium1
     lr = params.lr
     model_idx = params.model_idx
     epochs = params.epochs
     batch_size = params.batch_size
     loss_weight = params.loss_weight
     weight_decay = params.weight_decay
-    fig_dir = params.fig_dir
-
+    print_freq = params.print_freq
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -245,8 +246,10 @@ def main():
         val_data = [(832, 640, 224),(864, 640, 224)]
         test_data = [(832, 640, 224),(864, 640, 224)]
     else:
+        if medium1:
+            data_range = 512
         if medium:
-            data_range = 150
+            data_range = 512
         else:
             data_range = 1024
 
@@ -277,20 +280,23 @@ def main():
         model = SimpleUnet(dim).to(device)
     elif model_idx == 1:
         model = Baseline(dim, dim).to(device)
+    elif model_idx == 2:
+        model = Inception(dim).to(device)
+    else:
+        print('model not exist')
     #criterion = nn.MSELoss().to(device) #yueqiu
     #weight = torch.Tensor([0.99,0.05,0.05])
 
-    criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight)).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr,
-                                    weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 3)).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion)
 
     for epoch in range(epochs):
         adjust_learning_rate(lr, optimizer, epoch)
-        train(training_generator, model, criterion, optimizer, epoch)
+        train(training_generator, model, criterion, optimizer, epoch, print_freq)
         # evaluate on validation set
         validate(validation_generator, model, criterion)
-    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, fig_dir)
+    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL)
 
 
 if __name__ == '__main__':

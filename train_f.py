@@ -51,18 +51,20 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 #output a tensor equals to normalized [x, loss_weight * x,loss_weight * x]
-def get_loss_weight(loss_weight):
-    piece = 1/(2 * loss_weight + 1)
+def get_loss_weight(loss_weight, num_class):
+    piece = 1/((num_class - 1) * loss_weight + 1)
     return (torch.from_numpy(piece * np.array([1,loss_weight, loss_weight]))).float()
 
-def train_plot(train_loss, val_loss, val_acc, val_recall, fig_dir):
+def train_plot(train_loss, val_loss, val_acc, val_recall):
     if not os.path.exists('fig'):
         os.makedirs('fig')
+    plt.figure()
     plt.plot(val_recall,label='Validation Recall')
     plt.plot(val_acc,label='Validation Accuracy')
     plt.legend()
     plt.show()
     plt.savefig(fig_dir + 'recall+acc')
+    plt.figure()
     plt.plot(train_loss,label='Training Loss')
     plt.plot(val_loss,label='Validation Loss')
     plt.legend()
