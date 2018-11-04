@@ -16,4 +16,4 @@
 #module load cuda/8.0.44
 #RUNDIR=$home/ys3202/dark/run-${SLURM_JOB_ID/.*}
 #mkdir -p $RUNDIR
-python src/main.py --medium 1 --lr 0.005 --loss_weight 1000 --model_idx 2 > result_inception.txt
+python src/main.py --medium 1 --lr 0.005 --loss_weight 1000 --model_idx 0 --target_cat 'count' --target_class 0 > result_inception.txt
