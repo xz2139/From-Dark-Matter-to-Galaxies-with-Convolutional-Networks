@@ -53,8 +53,19 @@ def accuracy(output, target, topk=(1,)):
 #output a tensor equals to normalized [x, loss_weight * x,loss_weight * x]
 def get_loss_weight(loss_weight, num_class):
     piece = 1/((num_class - 1) * loss_weight + 1)
-    return (torch.from_numpy(piece * np.array([1,loss_weight, loss_weight]))).float()
+    a = [1]
+    a.extend([loss_weight] * (num_class - 1))
+    return (torch.from_numpy(piece * np.array(a))).float()
 
+def confusion_matrix_calc(pred,Y):
+    Y_index = Y > 0
+    TP = torch.sum(pred[Y_index] > 0).item()   #recall calculation
+    FP = torch.sum(pred[~Y_index] > 0).item() #how many false positive
+    ground_P = Y[Y_index].numel()
+    ground_F = Y.numel() - ground_P
+    return TP/ground_P, ground_P, FP/ground_F, ground_F
+
+    
 def train_plot(train_loss, val_loss, val_acc, val_recall):
     if not os.path.exists('fig'):
         os.makedirs('fig')

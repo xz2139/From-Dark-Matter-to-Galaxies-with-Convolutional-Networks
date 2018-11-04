@@ -61,7 +61,10 @@ def parse_args():
                         help='Batch size.')
     parser.add_argument('--loss_weight', type=int, default=300,
                         help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
-    
+    parser.add_argument('--target_cat', default='count',
+                        help='the target cube we want to predict, count or mass')
+    parser.add_argument('--target_class', type = int, default= 0,
+                        help='0:classification 1:regression')
     return parser.parse_args()
 
 
@@ -100,7 +103,6 @@ def initial_loss(train_loader, val_loader, model, criterion):
             target = target.to(device).long()
             # compute output
             output = model(input)
-            
             loss = criterion(output, target)
             # measure accuracy and record loss
             val_losses.update(loss.item(), input.size(0))
@@ -138,7 +140,7 @@ def initial_loss(train_loader, val_loader, model, criterion):
 
 
 
-def train(train_loader, model, criterion, optimizer, epoch, print_freq):
+def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_class):
 
 
     batch_time = AverageMeter()
@@ -185,7 +187,7 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq):
     TRAIN_LOSS.append(losses.avg)
     print('Epoch Train: Loss {loss.avg:.4f}\t'.format(loss=losses))
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, target_class):
 
 
     batch_time = AverageMeter()
@@ -239,6 +241,8 @@ def main():
     loss_weight = params.loss_weight
     weight_decay = params.weight_decay
     print_freq = params.print_freq
+    target_cat = params.target_cat
+    target_class = params.target_class
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -265,8 +269,8 @@ def main():
           'shuffle': True,
           'num_workers':20}
 
-    training_set, validation_set = Dataset(train_data), Dataset(val_data)
-    testing_set= Dataset(test_data)
+    training_set, validation_set = Dataset(train_data, cat = target_cat), Dataset(val_data, cat = target_cat)
+    testing_set= Dataset(test_data, cat= target_cat)
     training_generator = data.DataLoader(training_set, **params)
     validation_generator = data.DataLoader(validation_set, **params)
     testing_generator = data.DataLoader(testing_set, **params)
@@ -286,17 +290,20 @@ def main():
         print('model not exist')
     #criterion = nn.MSELoss().to(device) #yueqiu
     #weight = torch.Tensor([0.99,0.05,0.05])
+    if target_class == 0:
+        criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
+    else:
+        criterion = nn.MSELoss().to(device) #yueqiu
 
-    criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 3)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion)
 
     for epoch in range(epochs):
         adjust_learning_rate(lr, optimizer, epoch)
-        train(training_generator, model, criterion, optimizer, epoch, print_freq)
+        train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
         # evaluate on validation set
-        validate(validation_generator, model, criterion)
-    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL)
+        #validate(validation_generator, model, criterion, target_class = target_class)
+    #train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL)
 
 
 if __name__ == '__main__':

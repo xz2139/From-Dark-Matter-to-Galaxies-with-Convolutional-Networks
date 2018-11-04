@@ -66,7 +66,7 @@ class SimpleUnet(nn.Module):
         self.relu=nn.ReLU()
 #         self.fc1=nn.Linear(43904,32768)
 #         self.fc2=nn.Linear(6912, 32768)
-        self.fc3=nn.Linear(4096,32768*3)
+        self.fc3=nn.Linear(4096,32768*2)
 #         self.Simple_Unet = nn.Sequential(
 #             self.conv_layer(self.in_channels, 16),
 #             self.conv_layer(16, 16),
@@ -126,7 +126,7 @@ class SimpleUnet(nn.Module):
         linear=self.fc3(cube.view(b_size,-1))
 #         linear=linear1+linear2+linear
         #print('linear: ', linear.size())
-        cube=linear.reshape([b_size,3,32,32,32])
+        cube=linear.reshape([b_size,2,32,32,32])
 #         cube = self.relu(cube)
 #         cube = self.upsamp1(cube)
 #         cube = self.upconv1(cube)
@@ -204,7 +204,7 @@ class Inception(nn.Module):
         conv_in = conv1_out + conv3_out + conv5_out + 3
         self.conv1 = BasicConv3d(conv_in, 123, kernel_size = 5, padding = 2)
         self.conv2 = BasicConv3d(123, 60, kernel_size = 3, padding = 1)
-        self.conv3 = BasicConv3d(60, 3, kernel_size = 1)
+        self.conv3 = BasicConv3d(60, 2, kernel_size = 1)
     def forward(self, x):
         b_size = x.size(0)
         incep1 = self.incep(x)
