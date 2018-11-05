@@ -33,7 +33,7 @@ print(device)
 
 # the following four variables are global variables that record the statistics 
 # for each epoch so that the plot can be produced
-TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION = [],[],[],[],[]
+TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_Precision = [],[],[],[],[]
 
 
 
@@ -70,7 +70,7 @@ def parse_args():
 
 
 
-def initial_loss(train_loader, val_loader, model, criterion, target_class):
+def initial_loss(train_loader, val_loader, model, criterion):
     #AverageMeter is a object that record the sum, avg, count and val of the target stats
     train_losses = AverageMeter()
     val_losses = AverageMeter()  
@@ -88,9 +88,9 @@ def initial_loss(train_loader, val_loader, model, criterion, target_class):
             # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
             input = input.unsqueeze(dim = 1).to(device).float()
             if target_class == 0:
-                target = target.to(device).long()
+                target = target.unsqueeze(dim = 1).to(device).float()
             elif target_class == 1:
-                target = target.to(device).float()
+                target = target.to(device).long()
             # compute output
             output = model(input)
             # print("target1: ", target.size())
@@ -103,37 +103,33 @@ def initial_loss(train_loader, val_loader, model, criterion, target_class):
             # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
 
             input = input.unsqueeze(dim = 1).to(device).float()
-            if target_class == 0:
-                target = target.to(device).long()
-            elif target_class == 1:
-                target = target.to(device).float()
+            #target = target.unsqueeze(dim = 1).to(device).float()
+            target = target.to(device).long()
             # compute output
             output = model(input)
             loss = criterion(output, target)
             # measure accuracy and record loss
             val_losses.update(loss.item(), input.size(0))
             outputs = F.softmax(output, dim=1)
-            predicted = outputs.max(1)[1]
+            predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
             #ptotal += (target.view_as(predicted) >= 1).sum().item()
             #tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted)>= 1)).sum().item()
-            TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
+            TPR, gp, FPR, gf = confusion_matrix_calc(output,target)
             TPRs.update(TPR,gp)
-            FPRs.update(FPR,gf)            
-            loss = criterion(output, target)
+            FPRs.update(FPR,gf)            loss = criterion(output, target)
             # measure accuracy and record loss
             val_losses.update(loss.item(), input.size(0))  
 
     # recall =  tp/ptotal*100  #recall = true positive / count of all positive predictions  
     acc = correct/total*100
-    recall = TPRs.avg * 100
-    precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100    
-    TRAIN_LOSS.append(train_losses.avg)
+    recall = TPR.avg * 100
+    precision = TPR.sum/(TPR.sum + FPR.sum) * 100    TRAIN_LOSS.append(train_losses.avg)
     VAL_LOSS.append(val_losses.avg)
     VAL_RECALL.append(recall)
     VAL_ACC.append(acc)
-    VAL_PRECISION.append(precision)
+    VAL_Precision.append(precision)
     print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f},\
      Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format(train_losses = train_losses, \
         val_losses=val_losses,acc=acc, recall = recall, precision = precision))
@@ -159,9 +155,9 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_c
         # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
         input = input.unsqueeze(dim = 1).to(device).float()
         if target_class == 0:
-            target = target.to(device).long()
+            target = target.unsqueeze(dim = 1).to(device).float()
         elif target_class == 1:
-            target = target.to(device).float()
+            target = target.to(device).long()
         # compute output
         output = model(input)
 
@@ -197,7 +193,6 @@ def validate(val_loader, model, criterion, target_class):
     losses = AverageMeter()
     TPRs = AverageMeter()
     FPRs = AverageMeter()  
-    total = 0
     correct = 0
     model.eval()
     with torch.no_grad():
@@ -205,30 +200,29 @@ def validate(val_loader, model, criterion, target_class):
         for i, (input, target) in enumerate(val_loader):
             input = input.unsqueeze(dim = 1).to(device).float()
             if target_class == 0:
-                target = target.to(device).long()
+                target = target.unsqueeze(dim = 1).to(device).float()
             elif target_class == 1:
-                target = target.to(device).float()
+                target = target.to(device).long()
             
             
             # compute output
             output = model(input)
             outputs = F.softmax(output, dim=1)
-            predicted = outputs.max(1)[1]
+            predicted = outputs.max(1, keepdim=True)[1]
             total += np.prod(target.shape)
             correct += predicted.eq(target.view_as(predicted)).sum().item()
-            TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
+            TPR, gp, FPR, gf = confusion_matrix_calc(output,target)
             TPRs.update(TPR,gp)
             FPRs.update(FPR,gf)
             loss = criterion(output, target)
             # measure accuracy and record loss
             losses.update(loss.item(), input.size(0))
-    recall = TPRs.avg * 100
-    precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100
-    acc = correct/total*100
+    recall = TPR.avg * 100
+    precision = TPR.sum/(TPR.sum + FPR.sum) * 100
     VAL_LOSS.append(losses.avg)
     VAL_RECALL.append(recall)
     VAL_ACC.append(acc)
-    VAL_PRECISION.append(precision)
+    VAL_Precision.append(precision)
     #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
     print('Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}  Precision {precision:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = recall, precision = precision))
 
@@ -301,14 +295,14 @@ def main():
         criterion = nn.MSELoss().to(device) #yueqiu
 
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
-    initial_loss(training_generator, validation_generator, model, criterion, target_class)
+    initial_loss(training_generator, validation_generator, model, criterion)
 
     for epoch in range(epochs):
         adjust_learning_rate(lr, optimizer, epoch)
         train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
-        #evaluate on validation set
-        validate(validation_generator, model, criterion, target_class = target_class)
-    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION)
+        # evaluate on validation set
+        #validate(validation_generator, model, criterion, target_class = target_class)
+    #train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL)
 
 
 if __name__ == '__main__':
