@@ -11,7 +11,6 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torch.nn.functional as F
-
 # import torch.utils.data.distributed
 # import torchvision.transforms as transforms
 # import torchvision.datasets as datasets
@@ -34,8 +33,9 @@ print(device)
 # the following four variables are global variables that record the statistics 
 # for each epoch so that the plot can be produced
 TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION = [],[],[],[],[]
-
-
+BEST_VAL_LOSS = [999999999]
+if not os.path.exists('pretrained'):
+        os.makedirs('pretrained')
 
 def parse_args():
     parser = argparse.ArgumentParser(description="main.py")
@@ -69,6 +69,8 @@ def parse_args():
                         help='label for the filename of the plot. If left default, \
                         the plot_label will be \'_\' + target_class + \'_\' + target_cat. \
                         This label is for eliminating risk of overwriting previous plot')
+    parser.add_argument('--load_model', type=int, default=0,
+                        help='')
     return parser.parse_args()
 
 
@@ -239,6 +241,9 @@ def validate(val_loader, model, criterion, target_class):
         VAL_RECALL.append(recall)
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)
+    if val_losses.avg < BEST_VAL_LOSS[0]:
+        BEST_VAL_LOSS[0] = val_losses.avg
+        torch.save(model, 'pretrained/mytraining.pt')
 
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
@@ -265,6 +270,7 @@ def main():
     target_cat = params.target_cat
     target_class = params.target_class
     plot_label = params.plot_label
+    load_model = params.load_model
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -310,12 +316,17 @@ def main():
         model = Inception(dim).to(device)
     else:
         print('model not exist')
+
+    if load_model:
+        model = torch.load('pretrained/mytraining.pt')
     #criterion = nn.MSELoss().to(device) #yueqiu
     #weight = torch.Tensor([0.99,0.05,0.05])
     if target_class == 0:
         criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
     else:
-        criterion = nn.MSELoss().to(device) #yueqiu
+        #criterion = weighted_nn_loss(loss_weight)
+        criterion = nn.MSELoss() #yueqiu
+
 
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
     initial_loss(training_generator, validation_generator, model, criterion, target_class)

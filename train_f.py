@@ -3,6 +3,7 @@ import numpy as np
 import os
 from args import args
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
@@ -57,6 +58,15 @@ def get_loss_weight(loss_weight, num_class):
     a.extend([loss_weight] * (num_class - 1))
     return (torch.from_numpy(piece * np.array(a))).float()
 
+def weighted_nn_loss(weight_ratio):
+    def weighted(X,Y):
+        base_loss = F.mse_loss(X,Y,reduction = 'sum')
+        index = Y > 0
+        plus_loss = F.mse_loss(X[index],Y[index], reduction = 'sum') if index.any() > 0 else 0
+        total_loss = base_loss + (weight_ratio -1) * plus_loss
+        return total_loss/X.shape[0]
+    return weighted
+    
 def confusion_matrix_calc(pred,Y):
     Y_index = Y > 0
     TP = torch.sum(pred[Y_index] > 0).item()   #recall calculation
