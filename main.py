@@ -59,12 +59,16 @@ def parse_args():
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size.')
-    parser.add_argument('--loss_weight', type=int, default=300,
+    parser.add_argument('--loss_weight', type=int, default=20,
                         help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
     parser.add_argument('--target_cat', default='count',
                         help='the target cube we want to predict, count or mass')
     parser.add_argument('--target_class', type = int, default= 0,
                         help='0:classification 1:regression')
+    parser.add_argument('--plot_label', default= '',
+                        help='label for the filename of the plot. If left default, \
+                        the plot_label will be \'_\' + target_class + \'_\' + target_cat. \
+                        This label is for eliminating risk of overwriting previous plot')
     return parser.parse_args()
 
 
@@ -112,33 +116,38 @@ def initial_loss(train_loader, val_loader, model, criterion, target_class):
             loss = criterion(output, target)
             # measure accuracy and record loss
             val_losses.update(loss.item(), input.size(0))
-            outputs = F.softmax(output, dim=1)
-            predicted = outputs.max(1)[1]
-            total += np.prod(target.shape)
-            correct += predicted.eq(target.view_as(predicted)).sum().item()
-            #ptotal += (target.view_as(predicted) >= 1).sum().item()
-            #tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted)>= 1)).sum().item()
-            TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
-            TPRs.update(TPR,gp)
-            FPRs.update(FPR,gf)            
+            if target_class == 0:
+                outputs = F.softmax(output, dim=1)
+                predicted = outputs.max(1)[1]
+                total += np.prod(target.shape)
+                correct += predicted.eq(target.view_as(predicted)).sum().item()
+                #ptotal += (target.view_as(predicted) >= 1).sum().item()
+                #tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted)>= 1)).sum().item()
+                TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
+                TPRs.update(TPR,gp)
+                FPRs.update(FPR,gf)            
             loss = criterion(output, target)
             # measure accuracy and record loss
             val_losses.update(loss.item(), input.size(0))  
 
     # recall =  tp/ptotal*100  #recall = true positive / count of all positive predictions  
-    acc = correct/total*100
-    recall = TPRs.avg * 100
-    precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100    
+    if target_class == 0:
+        acc = correct/total*100
+        recall = TPRs.avg * 100
+        precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100  
+        VAL_RECALL.append(recall)
+        VAL_ACC.append(acc)
+        VAL_PRECISION.append(precision)  
+
     TRAIN_LOSS.append(train_losses.avg)
     VAL_LOSS.append(val_losses.avg)
-    VAL_RECALL.append(recall)
-    VAL_ACC.append(acc)
-    VAL_PRECISION.append(precision)
-    print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f},\
-     Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format(train_losses = train_losses, \
-        val_losses=val_losses,acc=acc, recall = recall, precision = precision))
-
-
+    if target_class == 0:
+        print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f},\
+         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format(train_losses = train_losses, \
+            val_losses=val_losses,acc=acc, recall = recall, precision = precision))
+    else:
+        print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f}'\
+            .format(train_losses = train_losses, val_losses=val_losses))
 
 def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_class):
 
@@ -194,7 +203,7 @@ def validate(val_loader, model, criterion, target_class):
 
 
     batch_time = AverageMeter()
-    losses = AverageMeter()
+    val_losses = AverageMeter()
     TPRs = AverageMeter()
     FPRs = AverageMeter()  
     total = 0
@@ -212,26 +221,33 @@ def validate(val_loader, model, criterion, target_class):
             
             # compute output
             output = model(input)
-            outputs = F.softmax(output, dim=1)
-            predicted = outputs.max(1)[1]
-            total += np.prod(target.shape)
-            correct += predicted.eq(target.view_as(predicted)).sum().item()
-            TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
-            TPRs.update(TPR,gp)
-            FPRs.update(FPR,gf)
+            if target_class == 0:
+                outputs = F.softmax(output, dim=1)
+                predicted = outputs.max(1)[1]
+                total += np.prod(target.shape)
+                correct += predicted.eq(target.view_as(predicted)).sum().item()
+                TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
+                TPRs.update(TPR,gp)
+                FPRs.update(FPR,gf)
             loss = criterion(output, target)
             # measure accuracy and record loss
-            losses.update(loss.item(), input.size(0))
-    recall = TPRs.avg * 100
-    precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100
-    acc = correct/total*100
-    VAL_LOSS.append(losses.avg)
-    VAL_RECALL.append(recall)
-    VAL_ACC.append(acc)
-    VAL_PRECISION.append(precision)
-    #print('Inital Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}\t'.format(loss=losses,ac=correct/total*100))
-    print('Test: Loss {loss.avg:.4f} Accuracy {ac:.4f}  Recall {recall:.4f}  Precision {precision:.4f}\t'.format(loss=losses,ac=correct/total*100, recall = recall, precision = precision))
+            val_losses.update(loss.item(), input.size(0))
+    if target_class == 0:
+        recall = TPRs.avg * 100
+        precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100
+        acc = correct/total*100
+        VAL_RECALL.append(recall)
+        VAL_ACC.append(acc)
+        VAL_PRECISION.append(precision)
 
+    VAL_LOSS.append(val_losses.avg)
+    if target_class == 0:
+        print('Test Loss {val_losses.avg:.4f},\
+         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format( \
+            val_losses=val_losses,acc=acc, recall = recall, precision = precision))
+    else:
+        print('Test Loss {val_losses.avg:.4f}'\
+            .format(val_losses=val_losses))
 def main():
 
     params = parse_args()
@@ -248,6 +264,7 @@ def main():
     print_freq = params.print_freq
     target_cat = params.target_cat
     target_class = params.target_class
+    plot_label = params.plot_label
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -256,8 +273,8 @@ def main():
         test_data = [(832, 640, 224),(864, 640, 224)]
     else:
         if medium1:
-            data_range = 512
-        if medium:
+            data_range = 200
+        elif medium:
             data_range = 512
         else:
             data_range = 1024
@@ -286,7 +303,7 @@ def main():
     # #build model
     dim = 1
     if model_idx == 0:
-        model = SimpleUnet(dim).to(device)
+        model = SimpleUnet(dim, target_class).to(device)
     elif model_idx == 1:
         model = Baseline(dim, dim).to(device)
     elif model_idx == 2:
@@ -308,7 +325,9 @@ def main():
         train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
         #evaluate on validation set
         validate(validation_generator, model, criterion, target_class = target_class)
-    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION)
+    if len(plot_label) == 0:
+        plot_label = '_' + str(target_class) + '_' + str(target_cat) + '_'
+    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION, target_class, plot_label = plot_label)
 
 
 if __name__ == '__main__':

@@ -8,15 +8,29 @@
 
 ### Baseline Model: U-Net
 
+### Sample script for running classification
+python src/main.py --medium1 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs 3 --target_cat 'count' --target_class 0 > result.txt
+### Sample script for running regression
+python src/main.py --medium 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs 3 --target_cat 'mass' --target_class 1 > result_reg.txt
+
 
 ### Usage: python main.py
 ### --mini  1 use only two cubes to train  (default 0)
-### --medium 1 use 4% of of the data to train  (default 0)
+### --medium 1 use 10% of of the data to train  (default 0)
+### --medium1 1 use 2% of of the data to train  (default 0)
+### --print_freq 
 ### --lr  (default 0.01)
+### --model_idx 0:Unet  1:baseline  2: Inception   (default 0)
 ### --epochs  (default 20)
 ### --batch_size  (default 16)
-### --loss wight: weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x] default 16
-### --model_idx 0: Unet 1:baseline  (default 0)
+### --loss wight: weight of the loss equals to normalized [x, loss_weight * x]
+(default 20)
+### --target_cat: the feature we want to predict. count: the count of the subhalos mass: the mass of the subhalos   (default 'count')
+### --target_class  classification problem(0) or regression problem(1)   (default 0)
+### --plot_label  label for the filename of the plot. If left default, the plot_label will be '_' + target_class + '_' + target_cat. This label is for eliminating risk of overwriting previous plot  
+
+
+### Find the plot of trainning loss, validation loss, validation accuracy, validation recall and validation precision in the ./fig folder
 
 Update on 10/30:
 

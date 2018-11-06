@@ -65,17 +65,17 @@ def confusion_matrix_calc(pred,Y):
     ground_F = Y.numel() - ground_P
     return TP/ground_P, ground_P, FP/ground_F, ground_F
     
-def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision):
+def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_class, plot_label = ''):
     if not os.path.exists('fig'):
         os.makedirs('fig')
-    fig_dir = './fig/'
-    plt.figure()
-    plt.plot(val_recall,label='Validation Recall')
-    plt.plot(val_acc,label='Validation Accuracy')
-    plt.plot(val_precision,label='Validation Precision')
-    plt.legend()
-    plt.savefig(fig_dir + 'recall+acc+precision')
-
+    fig_dir = './fig/' + plot_label
+    if target_class == 0:
+        plt.figure()
+        plt.plot(val_recall,label='Validation Recall')
+        plt.plot(val_acc,label='Validation Accuracy')
+        plt.plot(val_precision,label='Validation Precision')
+        plt.legend()
+        plt.savefig(fig_dir + 'recall+acc+precision')
     plt.figure()
     plt.plot(train_loss,label='Training Loss')
     plt.plot(val_loss,label='Validation Loss')
