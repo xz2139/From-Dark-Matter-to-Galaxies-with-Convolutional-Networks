@@ -26,8 +26,8 @@ python src/main.py --medium 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs
 ### --loss wight: weight of the loss equals to normalized [x, loss_weight * x]
 (default 20)
 ### --target_cat: the feature we want to predict. count: the count of the subhalos mass: the mass of the subhalos   (default 'count')
-### --target_class  classification problem(0) or regression problem(1)   (default 0)
-### --plot_label  label for the filename of the plot. If left default, the plot_label will be '_' + target_class + '_' + target_cat. This label is for eliminating risk of overwriting previous plot  
+### --target_class：  classification problem(0) or regression problem(1)   (default 0)
+### --plot_label:  label for the filename of the plot. If left default, the plot_label will be '_' + target_class + '_' + target_cat. This label is for eliminating risk of overwriting previous plot  
 
 
 ### Find the plot of trainning loss, validation loss, validation accuracy, validation recall and validation precision in the ./fig folder
