@@ -6,6 +6,8 @@
 
 ### Data: 6 simulations from Illustris Project
 
+### The best result will be saved to all_results(along with the hyperparameters)
+
 ### Baseline Model: U-Net
 
 ### Sample script for running classification
@@ -14,7 +16,7 @@ python src/main.py --medium1 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epoch
 python src/main.py --medium 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs 3 --target_cat 'mass' --target_class 1 > result_reg.txt
 
 
-### Usage: python main.py
+
 ### --mini  1 use only two cubes to train  (default 0)
 ### --medium 1 use 10% of of the data to train  (default 0)
 ### --medium1 1 use 2% of of the data to train  (default 0)
@@ -29,7 +31,7 @@ python src/main.py --medium 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs
 ### --target_class：  classification problem(0) or regression problem(1)   (default 0)
 ### --plot_label:  label for the filename of the plot. If left default, the plot_label will be '_' + target_class + '_' + target_cat. This label is for eliminating risk of overwriting previous plot 
 ### --load_model 
-
+### --record_results whether to write the best results to all_results.txt
 
 ### Find the plot of trainning loss, validation loss, validation accuracy, validation recall and validation precision in the ./fig folder
 
