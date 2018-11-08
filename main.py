@@ -11,10 +11,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torch.nn.functional as F
-# import torch.utils.data.distributed
-# import torchvision.transforms as transforms
-# import torchvision.datasets as datasets
-# import torchvision.models as models
+
 
 from torch.utils import data
 import random
@@ -33,7 +30,12 @@ print(device)
 # the following four variables are global variables that record the statistics 
 # for each epoch so that the plot can be produced
 TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION = [],[],[],[],[]
-BEST_VAL_LOSS = [999999999]
+BEST_VAL_LOSS = 999999999
+BEST_RECALL = 0
+BEST_PRECISION = 0
+BEST_F1SCORE = 0
+BEST_ACC = 0
+EPSILON = 1e-5
 if not os.path.exists('pretrained'):
         os.makedirs('pretrained')
 
@@ -71,9 +73,15 @@ def parse_args():
                         This label is for eliminating risk of overwriting previous plot')
     parser.add_argument('--load_model', type=int, default=0,
                         help='')
+    parser.add_argument('--conv1_out', type=int, default=3,
+                        help='')
+    parser.add_argument('--conv3_out', type=int, default=4,
+                        help='')
+    parser.add_argument('--conv5_out', type=int, default=5,
+                        help='')
+    parser.add_argument('--record_results', type=int, default=0,
+                        help='whether to write the best results to all_results.txt')
     return parser.parse_args()
-
-
 
 
 def initial_loss(train_loader, val_loader, model, criterion, target_class):
@@ -136,7 +144,7 @@ def initial_loss(train_loader, val_loader, model, criterion, target_class):
     if target_class == 0:
         acc = correct/total*100
         recall = TPRs.avg * 100
-        precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100  
+        precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100  
         VAL_RECALL.append(recall)
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)  
@@ -202,8 +210,11 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_c
 
 
 def validate(val_loader, model, criterion, target_class):
-
-
+    global BEST_VAL_LOSS
+    global BEST_RECALL
+    global BEST_PRECISION
+    global BEST_F1SCORE
+    global BEST_ACC
     batch_time = AverageMeter()
     val_losses = AverageMeter()
     TPRs = AverageMeter()
@@ -236,41 +247,48 @@ def validate(val_loader, model, criterion, target_class):
             val_losses.update(loss.item(), input.size(0))
     if target_class == 0:
         recall = TPRs.avg * 100
-        precision = TPRs.sum/(TPRs.sum + FPRs.sum) * 100
+        precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100
+        F1score = 2*((precision*recall)/(precision+recall+ EPSILON))
         acc = correct/total*100
         VAL_RECALL.append(recall)
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)
-    if val_losses.avg < BEST_VAL_LOSS[0]:
-        BEST_VAL_LOSS[0] = val_losses.avg
-        torch.save(model, 'pretrained/mytraining.pt')
-
+        if F1score > BEST_F1SCORE:
+            torch.save(model, 'pretrained/mytraining.pt')
+            BEST_VAL_LOSS = val_losses.avg
+            BEST_RECALL = recall
+            BEST_PRECISION = precision
+            BEST_F1SCORE = F1score
+            BEST_ACC = acc
+                
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
         print('Test Loss {val_losses.avg:.4f},\
-         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format( \
-            val_losses=val_losses,acc=acc, recall = recall, precision = precision))
+         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format( \
+            val_losses=val_losses,acc=acc, recall = recall, precision = precision, F1score = F1score))
     else:
         print('Test Loss {val_losses.avg:.4f}'\
             .format(val_losses=val_losses))
 def main():
 
-    params = parse_args()
-    print("arguments: %s" %(params))
-    mini = params.mini
-    medium = params.medium
-    medium1 = params.medium1
-    lr = params.lr
-    model_idx = params.model_idx
-    epochs = params.epochs
-    batch_size = params.batch_size
-    loss_weight = params.loss_weight
-    weight_decay = params.weight_decay
-    print_freq = params.print_freq
-    target_cat = params.target_cat
-    target_class = params.target_class
-    plot_label = params.plot_label
-    load_model = params.load_model
+    args = parse_args()
+    print("arguments: %s" %(args))
+    mini = args.mini
+    medium = args.medium
+    medium1 = args.medium1
+    lr = args.lr
+    model_idx = args.model_idx
+    epochs = args.epochs
+    batch_size = args.batch_size
+    loss_weight = args.loss_weight
+    weight_decay = args.weight_decay
+    print_freq = args.print_freq
+    target_cat = args.target_cat
+    target_class = args.target_class
+    plot_label = args.plot_label
+    load_model = args.load_model
+    conv1_out, conv3_out, conv5_out = args.conv1_out, args.conv3_out, args.conv5_out
+    record_results = args.record_results
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -313,7 +331,7 @@ def main():
     elif model_idx == 1:
         model = Baseline(dim, dim).to(device)
     elif model_idx == 2:
-        model = Inception(dim).to(device)
+        model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
     else:
         print('model not exist')
 
@@ -324,8 +342,8 @@ def main():
     if target_class == 0:
         criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
     else:
-        #criterion = weighted_nn_loss(loss_weight)
-        criterion = nn.MSELoss() #yueqiu
+        criterion = weighted_nn_loss(loss_weight)
+        #criterion = nn.MSELoss() #yueqiu
 
 
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
@@ -337,9 +355,17 @@ def main():
         #evaluate on validation set
         validate(validation_generator, model, criterion, target_class = target_class)
     if len(plot_label) == 0:
-        plot_label = '_' + str(target_class) + '_' + str(target_cat) + '_'
+        plot_label = '_' + str(target_class) + '_' + str(model_idx) + '_'
     train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION, target_class, plot_label = plot_label)
-
+    if target_class == 0:
+        if record_results:
+            args = parse_args()
+            f= open("all_results","a+")
+            f.write("arguments: %s" %(args) + '\n')
+            f.write('Test Loss {BEST_VAL_LOSS:.4f},  Test Accuracy {BEST_ACC:.4f},  Test Recall {BEST_RECALL:.4f},  \
+            Precision {BEST_PRECISION:.4f}   F1 score  {BEST_F1SCORE:.4f}\n'.format( \
+                        BEST_VAL_LOSS=BEST_VAL_LOSS,BEST_ACC=BEST_ACC, BEST_RECALL = BEST_RECALL, BEST_PRECISION = BEST_PRECISION, BEST_F1SCORE =  BEST_F1SCORE))
+            f.close() 
 
 if __name__ == '__main__':
     main()
