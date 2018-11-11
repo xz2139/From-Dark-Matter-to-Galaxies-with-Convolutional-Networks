@@ -113,7 +113,7 @@ def yqloss(weight, w):
     def yqloss_(pred, target, kernel_size = 3):
         criterion = nn.CrossEntropyLoss(weight = weight)
         loss_nn = criterion(pred, target)
-        # loss_blob = blob_loss(predicted, kernel_size = kernel_size)
-        # loss = loss_nn + torch.tensor(w * loss_blob)
+        loss_blob = blob_loss(predicted, kernel_size = kernel_size)
+        loss = loss_nn + torch.tensor(w * loss_blob)
         return loss_nn
     return yqloss_
