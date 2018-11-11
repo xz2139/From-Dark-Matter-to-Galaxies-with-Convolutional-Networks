@@ -81,6 +81,8 @@ def parse_args():
                         help='')
     parser.add_argument('--record_results', type=int, default=0,
                         help='whether to write the best results to all_results.txt')
+    parser.add_argument('--yqloss_weight', type=float, default=0,
+                        help='')
     return parser.parse_args()
 
 
@@ -245,6 +247,8 @@ def validate(val_loader, model, criterion, target_class):
             loss = criterion(output, target)
             # measure accuracy and record loss
             val_losses.update(loss.item(), input.size(0))
+
+    
     if target_class == 0:
         recall = TPRs.avg * 100
         precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100
@@ -260,7 +264,7 @@ def validate(val_loader, model, criterion, target_class):
             BEST_PRECISION = precision
             BEST_F1SCORE = F1score
             BEST_ACC = acc
-                
+    
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
         print('Test Loss {val_losses.avg:.4f},\
@@ -270,6 +274,7 @@ def validate(val_loader, model, criterion, target_class):
         print('Test Loss {val_losses.avg:.4f}'\
             .format(val_losses=val_losses))
 def main():
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     args = parse_args()
     print("arguments: %s" %(args))
@@ -289,6 +294,7 @@ def main():
     load_model = args.load_model
     conv1_out, conv3_out, conv5_out = args.conv1_out, args.conv3_out, args.conv5_out
     record_results = args.record_results
+    yqloss_weight = torch.Tensor([args.yqloss_weight])
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -322,7 +328,6 @@ def main():
     testing_generator = data.DataLoader(testing_set, **params)
 
     # #set up device
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # #build model
     dim = 1
@@ -332,6 +337,7 @@ def main():
         model = Baseline(dim, dim).to(device)
     elif model_idx == 2:
         model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
+
     else:
         print('model not exist')
 
@@ -340,7 +346,8 @@ def main():
     #criterion = nn.MSELoss().to(device) #yueqiu
     #weight = torch.Tensor([0.99,0.05,0.05])
     if target_class == 0:
-        criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
+        #criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
+        criterion = yqloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yqloss_weight.to(device))
     else:
         criterion = weighted_nn_loss(loss_weight)
         #criterion = nn.MSELoss() #yueqiu
