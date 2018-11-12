@@ -73,6 +73,8 @@ def parse_args():
                         This label is for eliminating risk of overwriting previous plot')
     parser.add_argument('--load_model', type=int, default=0,
                         help='')
+    parser.add_argument('--save_name', default='mymodel',
+                        help='the name of the saved model file')
     parser.add_argument('--conv1_out', type=int, default=3,
                         help='')
     parser.add_argument('--conv3_out', type=int, default=4,
@@ -211,7 +213,7 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_c
     
 
 
-def validate(val_loader, model, criterion, target_class):
+def validate(val_loader, model, criterion, target_class, save_name):
     global BEST_VAL_LOSS
     global BEST_RECALL
     global BEST_PRECISION
@@ -258,7 +260,7 @@ def validate(val_loader, model, criterion, target_class):
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)
         if F1score > BEST_F1SCORE:
-            torch.save(model, 'pretrained/mytraining.pt')
+            torch.save(model, 'pretrained/' + str(save_name) + '.pt')
             BEST_VAL_LOSS = val_losses.avg
             BEST_RECALL = recall
             BEST_PRECISION = precision
@@ -292,9 +294,10 @@ def main():
     target_class = args.target_class
     plot_label = args.plot_label
     load_model = args.load_model
+    save_name = args.save_name
     conv1_out, conv3_out, conv5_out = args.conv1_out, args.conv3_out, args.conv5_out
     record_results = args.record_results
-    yqloss_weight = torch.Tensor([args.yqloss_weight])
+    yqloss_weight = torch.Tensor([args.yqloss_weight]).to(device)
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -303,7 +306,7 @@ def main():
         test_data = [(832, 640, 224),(864, 640, 224)]
     else:
         if medium1:
-            data_range = 200
+            data_range = 130
         elif medium:
             data_range = 512
         else:
@@ -347,7 +350,7 @@ def main():
     #weight = torch.Tensor([0.99,0.05,0.05])
     if target_class == 0:
         #criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
-        criterion = yqloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yqloss_weight.to(device))
+        criterion = yqloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yqloss_weight, device = device)
     else:
         criterion = weighted_nn_loss(loss_weight)
         #criterion = nn.MSELoss() #yueqiu
@@ -360,7 +363,7 @@ def main():
         adjust_learning_rate(lr, optimizer, epoch)
         train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
         #evaluate on validation set
-        validate(validation_generator, model, criterion, target_class = target_class)
+        validate(validation_generator, model, criterion, target_class = target_class, save_name = save_name)
     if len(plot_label) == 0:
         plot_label = '_' + str(target_class) + '_' + str(model_idx) + '_'
     train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION, target_class, plot_label = plot_label)

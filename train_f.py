@@ -93,27 +93,24 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
     plt.legend()
     plt.savefig(fig_dir + 'loss')
 
-def blob_loss(predicted, kernel_size = 3):
-    predict = predicted
-    num_obs = predicted.size(0)
-    length = predicted.size(1)
-    cube_sums = []
-    for i0 in range(num_obs):
-        for i in range(0,length - kernel_size + 1):
-            for j in range(0,length - kernel_size + 1):
-                for k in range(0,length - kernel_size + 1):
-                    cube_sum = torch.sum(predicted[i0,i:i + kernel_size, j:j + kernel_size,k:k + kernel_size])
-                    cube_sum_1 = 0 if cube_sum < 2 else (cube_sum.item() - 1) **2
-                    cube_sums.append(cube_sum_1)
-    return torch.sum(torch.Tensor(cube_sums)) / torch.prod(torch.Tensor(list(predicted.size())))
+def blob_loss(x):
+    s = 0
+    s += torch.sum((x[:,1:,:,:] - x[:,:-1,:,:]) ** 2 )
+    s += torch.sum((x[:,:,1:,:] - x[:,:,:-1,:]) ** 2 )
+    s += torch.sum((x[:,:,:,1:] - x[:,:,:,:-1]) ** 2 )
+    return s / torch.prod(torch.Tensor(list(x.size())))
 
-
-
-def yqloss(weight, w):
-    def yqloss_(pred, target, kernel_size = 3):
+def yqloss(weight, w, device):
+    def yqloss_(pred, target):
         criterion = nn.CrossEntropyLoss(weight = weight)
-        loss_nn = criterion(pred, target)
-        loss_blob = blob_loss(predicted, kernel_size = kernel_size)
-        loss = loss_nn + torch.tensor(w * loss_blob)
-        return loss_nn
+        loss_nn = criterion(pred, target).to(device)
+        print('loss_nn = ', loss_nn)
+        outputs = F.softmax(pred, dim=1)
+        #print('outputs.size = ', outputs.size())
+        outputs1 = outputs[:,1,:]
+        #print('outputs1.size = ', outputs1.size())
+        loss_blob = blob_loss(outputs1).to(device)
+        print('loss_blob = ', loss_blob)
+        loss = loss_nn + (w * loss_blob).to(device)
+        return loss
     return yqloss_
