@@ -83,7 +83,7 @@ def parse_args():
                         help='')
     parser.add_argument('--record_results', type=int, default=0,
                         help='whether to write the best results to all_results.txt')
-    parser.add_argument('--yqloss_weight', type=float, default=0,
+    parser.add_argument('--yfloss_weight', type=float, default=0,
                         help='')
     return parser.parse_args()
 
@@ -297,7 +297,7 @@ def main():
     save_name = args.save_name
     conv1_out, conv3_out, conv5_out = args.conv1_out, args.conv3_out, args.conv5_out
     record_results = args.record_results
-    yqloss_weight = torch.Tensor([args.yqloss_weight]).to(device)
+    yfloss_weight = torch.Tensor([args.yfloss_weight]).to(device)
     #index for the cube, each tuple corresponds to a cude
     #test data
     if mini:
@@ -350,7 +350,7 @@ def main():
     #weight = torch.Tensor([0.99,0.05,0.05])
     if target_class == 0:
         #criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
-        criterion = yqloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yqloss_weight, device = device)
+        criterion = yfloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yfloss_weight, device = device)
     else:
         criterion = weighted_nn_loss(loss_weight)
         #criterion = nn.MSELoss() #yueqiu

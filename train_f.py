@@ -95,13 +95,13 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
 
 def blob_loss(x):
     s = 0
-    s += torch.sum((x[:,1:,:,:] - x[:,:-1,:,:]) ** 2 )
-    s += torch.sum((x[:,:,1:,:] - x[:,:,:-1,:]) ** 2 )
-    s += torch.sum((x[:,:,:,1:] - x[:,:,:,:-1]) ** 2 )
+    s += torch.sum(((x[:,1:,:,:] - x[:,:-1,:,:]) * x[:,1:,:,:] * x[:,:-1,:,:]) ** 2 )
+    s += torch.sum(((x[:,:,1:,:] - x[:,:,:-1,:]) * x[:,:,1:,:] * x[:,:,:-1,:]) ** 2 )
+    s += torch.sum(((x[:,:,:,1:] - x[:,:,:,:-1]) * x[:,:,:,1:] * x[:,:,:,:-1]) ** 2 )
     return s / torch.prod(torch.Tensor(list(x.size())))
 
-def yqloss(weight, w, device):
-    def yqloss_(pred, target):
+def yfloss(weight, w, device):
+    def yfloss_(pred, target):
         criterion = nn.CrossEntropyLoss(weight = weight)
         loss_nn = criterion(pred, target).to(device)
         print('loss_nn = ', loss_nn)
@@ -113,4 +113,4 @@ def yqloss(weight, w, device):
         print('loss_blob = ', loss_blob)
         loss = loss_nn + (w * loss_blob).to(device)
         return loss
-    return yqloss_
+    return yfloss_
