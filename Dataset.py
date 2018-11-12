@@ -35,5 +35,11 @@ class Dataset(data.Dataset):
             f_box=convert(f_box)
         elif self.cat == 'mass':
             f_box=np.load('/scratch/xz2139/cosmo_mass/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
-        return d_box,f_box
+        
+        if self.aug:
+            dim_to_flip = tuple(np.arange(3)[np.random.choice(a= [False, True], size = 3)])
+            if len(dim_to_flip) > 0:
+                d_box = np.flip(d_box,dim_to_flip)
+                f_box = np.flip(f_box,dim_to_flip)
 
+        return d_box,f_box
