@@ -93,24 +93,24 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
     plt.legend()
     plt.savefig(fig_dir + 'loss')
 
-def blob_loss(x):
-    s = 0
-    s += torch.sum(((x[:,1:,:,:] - x[:,:-1,:,:]) * x[:,1:,:,:] * x[:,:-1,:,:]) ** 2 )
-    s += torch.sum(((x[:,:,1:,:] - x[:,:,:-1,:]) * x[:,:,1:,:] * x[:,:,:-1,:]) ** 2 )
-    s += torch.sum(((x[:,:,:,1:] - x[:,:,:,:-1]) * x[:,:,:,1:] * x[:,:,:,:-1]) ** 2 )
-    return s / torch.prod(torch.Tensor(list(x.size())))
+def blob_loss(x, device):
+    s = torch.Tensor([0]).to(device)
+    s += torch.sum(((x[:,1:,:,:] - x[:,:-1,:,:]) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
+    s += torch.sum(((x[:,:,1:,:] - x[:,:,:-1,:]) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
+    s += torch.sum(((x[:,:,:,1:] - x[:,:,:,:-1]) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
+    return s / x.contiguous().view(-1).size(0)
 
 def yfloss(weight, w, device):
     def yfloss_(pred, target):
         criterion = nn.CrossEntropyLoss(weight = weight)
         loss_nn = criterion(pred, target).to(device)
-        print('loss_nn = ', loss_nn)
+        #print('loss_nn = ', loss_nn)
         outputs = F.softmax(pred, dim=1)
         #print('outputs.size = ', outputs.size())
         outputs1 = outputs[:,1,:]
         #print('outputs1.size = ', outputs1.size())
-        loss_blob = blob_loss(outputs1).to(device)
-        print('loss_blob = ', loss_blob)
+        loss_blob = blob_loss(outputs1, device).to(device)
+        #print('loss_blob = ', loss_blob)
         loss = loss_nn + (w * loss_blob).to(device)
         return loss
     return yfloss_
