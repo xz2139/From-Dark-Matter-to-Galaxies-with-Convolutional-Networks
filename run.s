@@ -16,5 +16,5 @@
 #module load cuda/8.0.44
 #RUNDIR=$home/ys3202/dark/run-${SLURM_JOB_ID/.*}
 #mkdir -p $RUNDIR
-python src/main.py --medium 1 --lr 0.00001 --loss_weight 60 --model_idx 2 --epochs 6 --target_cat 'count' --target_class 0 --load_model 0 \
---conv1_out 52 --conv3_out 60 --conv5_out 68 --save_name 'temp' --record_results 0 --yfloss_weight 50 > result_yqloss.txt
+python src/main.py --medium1 1 --lr 0.00001 --loss_weight 60 --model_idx 2 --epochs 6 --target_cat 'count' --target_class 0 --load_model 0 \
+--conv1_out 52 --conv3_out 60 --conv5_out 68 --save_name 'yqloss_60_100' --record_results 0 --yfloss_weight 100 > result_yqloss_60_100.txt

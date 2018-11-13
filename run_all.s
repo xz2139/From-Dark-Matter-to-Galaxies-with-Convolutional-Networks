@@ -17,5 +17,5 @@
 #RUNDIR=$home/ys3202/dark/run-${SLURM_JOB_ID/.*}
 #mkdir -p $RUNDIR
 python src/main.py --lr 0.00001 --loss_weight 60 --model_idx 2 --epochs 6 --target_cat 'count' --target_class 0 --load_model 0 \
---conv1_out 52 --conv3_out 60 --conv5_out 68 --save_name 'yqloss_all' --record_results 0 --yfloss_weight 50 > result_yq50all.txt
+--conv1_out 52 --conv3_out 60 --conv5_out 68 --save_name 'yqloss_all_60_80' --record_results 0 --yfloss_weight 80 > result_yqall_60_80.txt
 
