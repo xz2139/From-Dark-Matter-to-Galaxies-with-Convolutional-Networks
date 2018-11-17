@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
-                        help='0:Unet, 1:baseline')
+                        help='0:Unet, 1:baseline 2: Inception 3. R2Unet')
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
@@ -73,8 +73,8 @@ def parse_args():
                         This label is for eliminating risk of overwriting previous plot')
     parser.add_argument('--load_model', type=int, default=0,
                         help='')
-    parser.add_argument('--save_name', default='mymodel',
-                        help='the name of the saved model file')
+    parser.add_argument('--save_name', default='',
+                        help='the name of the saved model file, default don\'t save')
     parser.add_argument('--conv1_out', type=int, default=3,
                         help='')
     parser.add_argument('--conv3_out', type=int, default=4,
@@ -213,7 +213,7 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_c
     
 
 
-def validate(val_loader, model, criterion, target_class, save_name):
+def validate(val_loader, model, criterion, epoch, target_class, save_name):
     global BEST_VAL_LOSS
     global BEST_RECALL
     global BEST_PRECISION
@@ -259,8 +259,10 @@ def validate(val_loader, model, criterion, target_class, save_name):
         VAL_RECALL.append(recall)
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)
-        if F1score > BEST_F1SCORE:
-            torch.save(model, 'pretrained/' + str(save_name) + '.pt')
+        if val_losses.avg < BEST_VAL_LOSS:
+            if len(save_name) > 0:
+                #torch.save(model, 'pretrained/' + str(save_name) + '.pt')
+                torch.save(model.state_dict(), 'pretrained/' + str(save_name) + '.pth')
             BEST_VAL_LOSS = val_losses.avg
             BEST_RECALL = recall
             BEST_PRECISION = precision
@@ -269,12 +271,12 @@ def validate(val_loader, model, criterion, target_class, save_name):
     
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
-        print('Test Loss {val_losses.avg:.4f},\
-         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format( \
+        print('Epoch {0} :Test Loss {val_losses.avg:.4f},\
+         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format(epoch, \
             val_losses=val_losses,acc=acc, recall = recall, precision = precision, F1score = F1score))
     else:
-        print('Test Loss {val_losses.avg:.4f}'\
-            .format(val_losses=val_losses))
+        print('Epoch {0} : Test Loss {val_losses.avg:.4f}'\
+            .format(epoch, val_losses=val_losses))
 def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -340,6 +342,8 @@ def main():
         model = Baseline(dim, dim).to(device)
     elif model_idx == 2:
         model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
+    elif model_idx == 3:
+        model = R2Unet(dim, dim, t = 3).to(device)
 
     else:
         print('model not exist')
@@ -363,7 +367,7 @@ def main():
         adjust_learning_rate(lr, optimizer, epoch)
         train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
         #evaluate on validation set
-        validate(validation_generator, model, criterion, target_class = target_class, save_name = save_name)
+        validate(validation_generator, model, criterion, epoch, target_class = target_class, save_name = save_name)
     if len(plot_label) == 0:
         plot_label = '_' + str(target_class) + '_' + str(model_idx) + '_'
     train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION, target_class, plot_label = plot_label)
