@@ -94,7 +94,7 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
     plt.savefig(fig_dir + 'loss')
 
 def blob_loss(x, device, target, mask = False):
-    s = torch.Tensor([0]).to(device)
+    s = torch.FloatTensor([0]).to(device)
     if not mask:
         s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
         s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
