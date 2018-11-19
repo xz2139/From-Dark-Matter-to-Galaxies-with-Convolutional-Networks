@@ -100,8 +100,6 @@ def blob_loss(x, device, target, mask = False):
         s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
         s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
     else:
-        if target == None:
-            raise ValueError('Need target to calculate the masked loss!')
         s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]) * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
         s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]) * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
         s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]) * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
