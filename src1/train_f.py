@@ -99,14 +99,19 @@ def blob_loss(x, device, target, mask = False):
 		s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
 		s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
 		s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
+		return s/x.contiguous().view(-1).size(0)
 	else:
-		s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
-		s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
-		s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
-		#numedge = (torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).sum() + torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).sum() +\
-		#torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).sum()).item()
-		#return s / numedge if numedge > 0 else 0
-	return s/x.contiguous().view(-1).size(0)
+		numedge = 0
+		edgeind = torch.abs(target[:,1:,:,:] - target[:,:-1,:,:])
+		s += torch.sum(edgeind.float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
+		numedge += edgeind.sum().item()
+		edgeind = torch.abs(target[:,:,1:,:] - target[:,:,:-1,:])
+		s += torch.sum(edgeind.float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
+		numedge += edgeind.sum().item()
+		edgeind = torch.abs(target[:,:,:,1:] - target[:,:,:,:-1])
+		s += torch.sum(edgeind.float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
+		numedge += edgeind.sum().item()
+		return s / numedge if numedge > 0 else 0
 
 def yfloss(weight, w, device):
     def yfloss_(pred, target):
@@ -117,7 +122,7 @@ def yfloss(weight, w, device):
         #print('outputs.size = ', outputs.size())
         outputs1 = outputs[:,1,:]
         #print('outputs1.size = ', outputs1.size())
-        loss_blob = blob_loss(outputs1, device, target, mask = False).to(device)
+        loss_blob = blob_loss(outputs1, device, target, mask = True).to(device)
         #print('loss_blob = ', loss_blob)
         loss = loss_nn + (w * loss_blob).to(device)
         return loss
