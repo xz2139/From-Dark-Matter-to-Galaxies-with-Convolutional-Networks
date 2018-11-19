@@ -100,9 +100,9 @@ def blob_loss(x, device, target, mask = False):
         s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
         s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
     else:
-        s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]) * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
-        s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]) * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
-        s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]) * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
+        s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
+        s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
+        s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
     return s / x.contiguous().view(-1).size(0)
 
 
