@@ -99,14 +99,14 @@ def blob_loss(x, device, target, mask = False):
 		s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
 		s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
 		s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
-		return s/x.contiguous().view(-1).size(0)
 	else:
 		s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
 		s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
 		s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
-		numedge = (torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).sum() + torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).sum() +\
-		torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).sum()).item()
-		return s / numedge if numedge > 0 else 0
+		#numedge = (torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).sum() + torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).sum() +\
+		#torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).sum()).item()
+		#return s / numedge if numedge > 0 else 0
+	return s/x.contiguous().view(-1).size(0)
 
 def yfloss(weight, w, device):
     def yfloss_(pred, target):
