@@ -94,21 +94,21 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
     plt.savefig(fig_dir + 'loss')
 
 def blob_loss(x, device, target, mask = False):
-    s = torch.Tensor([0]).to(device)
-    if not mask:
-        s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
-        s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
-        s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
-        return s/x.contiguous().view(-1).size(0)
-    else:
-        if target == None:
-            raise ValueError('Need target to calculate the masked loss!')
-        s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
-        s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
-        s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
-        numedge = (torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).sum() + torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).sum() +\
-        torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).sum()).item()
-    	return s / numedge if numedge > 0 else 0
+	s = torch.Tensor([0]).to(device)
+	if not mask:
+		s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
+		s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
+		s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
+		return s/x.contiguous().view(-1).size(0)
+	else:
+		if target == None:
+			raise ValueError('Need target to calculate the masked loss!')
+		s += torch.sum(torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
+		s += torch.sum(torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
+		s += torch.sum(torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
+		numedge = (torch.abs(target[:,1:,:,:] - target[:,:-1,:,:]).sum() + torch.abs(target[:,:,1:,:] - target[:,:,:-1,:]).sum() +\
+		torch.abs(target[:,:,:,1:] - target[:,:,:,:-1]).sum()).item()
+		return s / numedge if numedge > 0 else 0
 
 def yfloss(weight, w, device):
     def yfloss_(pred, target):
