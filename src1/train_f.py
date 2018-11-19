@@ -117,7 +117,7 @@ def yfloss(weight, w, device):
         #print('outputs.size = ', outputs.size())
         outputs1 = outputs[:,1,:]
         #print('outputs1.size = ', outputs1.size())
-        loss_blob = blob_loss(outputs1, device, target， mask = True).to(device)
+        loss_blob = blob_loss(outputs1, device, target, mask = True).to(device)
         #print('loss_blob = ', loss_blob)
         loss = loss_nn + (w * loss_blob).to(device)
         return loss
