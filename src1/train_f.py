@@ -117,13 +117,13 @@ def yfloss(weight, w, device):
     def yfloss_(pred, target):
         criterion = nn.CrossEntropyLoss(weight = weight)
         loss_nn = criterion(pred, target).to(device)
-        print('loss_nn = ', loss_nn)
+        #print('loss_nn = ', loss_nn)
         outputs = F.softmax(pred, dim=1)
         #print('outputs.size = ', outputs.size())
         outputs1 = outputs[:,1,:]
         #print('outputs1.size = ', outputs1.size())
         loss_blob = blob_loss(outputs1, device, target, mask = True).to(device)
-        print('loss_blob = ', loss_blob)
+        #print('loss_blob = ', loss_blob)
         loss = loss_nn + (w * loss_blob).to(device)
         return loss
     return yfloss_
