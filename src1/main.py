@@ -348,7 +348,7 @@ def main():
     elif model_idx == 4:
         mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
                                     , power = 0.25).to(device)
-        mask_model.load_state_dict('../trained_model/bestrecall_1_sqrt_root_ReLU6_10_300AnnealingTrue_0.9852364401645356.pth')
+        mask_model.load_state_dict('../trained_model/epoch_10_MSE.pth')
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
     else:
