@@ -285,6 +285,7 @@ def main():
     mini = args.mini
     medium = args.medium
     medium1 = args.medium1
+    reg = args.reg
     lr = args.lr
     model_idx = args.model_idx
     epochs = args.epochs
@@ -326,8 +327,8 @@ def main():
           'shuffle': True,
           'num_workers':20}
 
-    training_set, validation_set = Dataset(train_data, cat = target_cat), Dataset(val_data, cat = target_cat)
-    testing_set= Dataset(test_data, cat= target_cat)
+    training_set, validation_set = Dataset(train_data,cat = target_cat,reg = reg), Dataset(val_data, cat = target_cat,reg = reg)
+    testing_set= Dataset(test_data, cat= target_cat, reg = reg)
     training_generator = data.DataLoader(training_set, **params)
     validation_generator = data.DataLoader(validation_set, **params)
     testing_generator = data.DataLoader(testing_set, **params)
@@ -343,7 +344,7 @@ def main():
     elif model_idx == 2:
         model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
     elif model_idx == 3:
-        model = R2Unet(dim, dim, t = 3).to(device)
+        model = R2Unet(dim, dim, t = 3, reg = reg).to(device)
 
     else:
         print('model not exist')
