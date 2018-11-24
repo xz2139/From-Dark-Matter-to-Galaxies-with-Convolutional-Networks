@@ -21,5 +21,5 @@ source /home/yw1007/myenv/bin/activate
 modelidx=3
 lossweight=1
 yweight=1
-python src1/main.py --lr 0.0005 --loss_weight $lossweight --model_idx $modelidx --epochs 15 --target_cat 'count' --target_class 0 --load_model 0 \
+python src1/main.py --lr 0.0005 --reg 1 --loss_weight $lossweight --model_idx $modelidx --epochs 15 --target_cat 'count' --target_class 0 --load_model 0 \
 --save_name "model_full_${modelidx}_${lossweight}_${yweight}" --record_results 0 --yfloss_weight $yweight > result_full_${modelidx}_${lossweight}_${yweight}.txt
