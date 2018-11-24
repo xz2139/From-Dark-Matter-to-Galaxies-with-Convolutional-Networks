@@ -253,8 +253,42 @@ class R2Unet(nn.Module):
             x14 = self.sharp_filter(x14)
         return x14
     
+
+class one_layer_conv(nn.Module):
+    def __init__(self,in_channels, one_layer_outchannel, kernel_size, non_linearity, transformation, power):
+        super(one_layer_conv,self).__init__()
+        self.model = nn.Sequential(
+            nn.Conv3d(in_channels,one_layer_outchannel,kernel_size, padding = 1),
+            getattr(nn,non_linearity)(), 
+            nn.Conv3d(one_layer_outchannel,1,1), 
+            nn.ReLU()
+            )
+        for m in self.model:
+            if isinstance(m,nn.Conv3d):
+                nn.init.xavier_normal_(m.weight)
+                nn.init.constant_(m.bias,0)        
+        self.transformation = transformation
+        self.power = power
+
+    def forward(self,X):
+        if self.transformation == 'sqrt_root':
+            X = X.pow(self.power)
+        elif self.transformation == 'log':
+            X[X == 0] = 1
+            X = torch.log(X)
+        elif self.transformation == 'default':
+            X = X
+        else:
+            raise ValueError('Wrong data preprocessing procedure!')
+            X = X/10
+        return self.model(X)
+    
+    
+    
+    
+
 class two_phase_conv(nn.Module):
-    def __init__(self,first_pmodel,second_pmodel, threshold):
+    def __init__(self,first_pmodel,second_pmodel, threshold =0.5):
         super(two_phase_conv,self).__init__()
         self.fp = first_pmodel
         for param in self.fp.parameters():
