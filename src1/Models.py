@@ -198,7 +198,7 @@ class R2CNN(nn.Module):
         return x+x1
 
 class R2Unet(nn.Module):
-    def __init__(self, in_channels, out_channels, t, reg = 0):
+    def __init__(self, in_channels, out_channels, t, reg = 0, sharpening = False):
         super(R2Unet, self).__init__()
         self.reg = reg
         self.in_ch= in_channels
@@ -220,6 +220,8 @@ class R2Unet(nn.Module):
             self.conv11 = nn.Conv3d(16, 2, kernel_size = 1, stride=1, padding=0)
         else:
             self.conv11 = nn.Conv3d(16, 1, kernel_size = 1, stride=1, padding=0)
+        self.sharpening = sharpening
+        self.sharp_filter = nn.Conv3d(1,1,kernel_size = 3,stride = 1, padding = 1)
     def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=3, padding=1, output_padding=1, bias=True):
         layers = nn.Sequential(
             nn.ConvTranspose3d(in_channels,out_channels, kernel_size=kernel_size, stride=stride, padding=padding,output_padding=output_padding, bias=True),
@@ -247,4 +249,6 @@ class R2Unet(nn.Module):
         x14 = self.conv11(x13)
         if self.reg:
             x14 = x14.squeeze(1)
+        if self.sharpening:
+            x14 = self.sharp_filter(x14)
         return x14
