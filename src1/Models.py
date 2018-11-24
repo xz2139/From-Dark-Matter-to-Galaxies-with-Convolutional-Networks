@@ -252,3 +252,18 @@ class R2Unet(nn.Module):
         if self.sharpening:
             x14 = self.sharp_filter(x14)
         return x14
+    
+class two_phase_conv(nn.Module):
+    def __init__(self,first_pmodel,second_pmodel, threshold):
+        super(two_phase_conv,self).__init__()
+        self.fp = first_pmodel
+        for param in self.fp.parameters():
+            param.requires_grad = False
+        self.sp = second_pmodel
+        self.thres = threshold
+    
+    def forward(self,X):
+        mask_value = self.fp(X)
+        mask_value = mask_value > self.thres
+        result = mask_value * self.sp(X)
+        return result
