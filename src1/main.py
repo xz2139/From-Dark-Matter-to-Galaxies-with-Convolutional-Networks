@@ -316,6 +316,7 @@ def main():
 
         pos=list(np.arange(0,data_range,32))
         ranges=list(product(pos,repeat=3))
+        random.seed(7)
         random.shuffle(ranges)
         train_data = ranges[:int(np.round(len(ranges)*0.6))]
         val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
