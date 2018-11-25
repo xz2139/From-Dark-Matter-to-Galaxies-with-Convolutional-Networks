@@ -277,6 +277,7 @@ def validate(val_loader, model, criterion, epoch, target_class, save_name):
     else:
         print('Epoch {0} : Test Loss {val_losses.avg:.4f}'\
             .format(epoch, val_losses=val_losses))
+
 def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
