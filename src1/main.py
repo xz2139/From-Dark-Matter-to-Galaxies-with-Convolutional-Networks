@@ -349,7 +349,7 @@ def main():
         mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
                                     , power = 0.25).to(device)
         state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
-	mask_model.load_state_dict('state_dict')
+	mask_model.load_state_dict('state_dict')  
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
     else:
