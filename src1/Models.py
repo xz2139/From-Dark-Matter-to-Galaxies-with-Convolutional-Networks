@@ -198,7 +198,7 @@ class R2CNN(nn.Module):
         return x+x1
 
 class R2Unet(nn.Module):
-    def __init__(self, in_channels, out_channels, t, reg = 0):
+    def __init__(self, in_channels, out_channels, t, reg = 0, sharpening = False):
         super(R2Unet, self).__init__()
         self.reg = reg
         self.in_ch= in_channels
@@ -220,6 +220,8 @@ class R2Unet(nn.Module):
             self.conv11 = nn.Conv3d(16, 2, kernel_size = 1, stride=1, padding=0)
         else:
             self.conv11 = nn.Conv3d(16, 1, kernel_size = 1, stride=1, padding=0)
+        self.sharpening = sharpening
+        self.sharp_filter = nn.Conv3d(1,1,kernel_size = 3,stride = 1, padding = 1)
     def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=3, padding=1, output_padding=1, bias=True):
         layers = nn.Sequential(
             nn.ConvTranspose3d(in_channels,out_channels, kernel_size=kernel_size, stride=stride, padding=padding,output_padding=output_padding, bias=True),
@@ -247,4 +249,55 @@ class R2Unet(nn.Module):
         x14 = self.conv11(x13)
         if self.reg:
             x14 = x14.squeeze(1)
+        if self.sharpening:
+            x14 = self.sharp_filter(x14)
         return x14
+    
+
+class one_layer_conv(nn.Module):
+    def __init__(self,in_channels, one_layer_outchannel, kernel_size, non_linearity, transformation, power):
+        super(one_layer_conv,self).__init__()
+        self.model = nn.Sequential(
+            nn.Conv3d(in_channels,one_layer_outchannel,kernel_size, padding = 1),
+            getattr(nn,non_linearity)(), 
+            nn.Conv3d(one_layer_outchannel,1,1), 
+            nn.ReLU()
+            )
+        for m in self.model:
+            if isinstance(m,nn.Conv3d):
+                nn.init.xavier_normal_(m.weight)
+                nn.init.constant_(m.bias,0)        
+        self.transformation = transformation
+        self.power = power
+
+    def forward(self,X):
+        if self.transformation == 'sqrt_root':
+            X = X.pow(self.power)
+        elif self.transformation == 'log':
+            X[X == 0] = 1
+            X = torch.log(X)
+        elif self.transformation == 'default':
+            X = X
+        else:
+            raise ValueError('Wrong data preprocessing procedure!')
+            X = X/10
+        return self.model(X)
+    
+    
+    
+    
+
+class two_phase_conv(nn.Module):
+    def __init__(self,first_pmodel,second_pmodel, threshold =0.5):
+        super(two_phase_conv,self).__init__()
+        self.fp = first_pmodel
+        for param in self.fp.parameters():
+            param.requires_grad = False
+        self.sp = second_pmodel
+        self.thres = threshold
+    
+    def forward(self,X):
+        mask_value = self.fp(X)
+        mask_value = mask_value > self.thres
+        result = mask_value * self.sp(X)
+        return result

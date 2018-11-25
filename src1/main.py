@@ -277,6 +277,7 @@ def validate(val_loader, model, criterion, epoch, target_class, save_name):
     else:
         print('Epoch {0} : Test Loss {val_losses.avg:.4f}'\
             .format(epoch, val_losses=val_losses))
+
 def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -316,6 +317,7 @@ def main():
 
         pos=list(np.arange(0,data_range,32))
         ranges=list(product(pos,repeat=3))
+        random.seed(7)
         random.shuffle(ranges)
         train_data = ranges[:int(np.round(len(ranges)*0.6))]
         val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
@@ -326,8 +328,8 @@ def main():
           'shuffle': True,
           'num_workers':20}
 
-    training_set, validation_set = Dataset(train_data, cat = target_cat), Dataset(val_data, cat = target_cat)
-    testing_set= Dataset(test_data, cat= target_cat)
+    training_set, validation_set = Dataset(train_data,cat = target_cat,reg = target_class), Dataset(val_data, cat = target_cat,reg = target_class)
+    testing_set= Dataset(test_data, cat= target_cat, reg = target_class)
     training_generator = data.DataLoader(training_set, **params)
     validation_generator = data.DataLoader(validation_set, **params)
     testing_generator = data.DataLoader(testing_set, **params)
@@ -343,8 +345,14 @@ def main():
     elif model_idx == 2:
         model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
     elif model_idx == 3:
-        model = R2Unet(dim, dim, t = 3).to(device)
-
+        model = R2Unet(dim, dim, t = 3, reg = target_class).to(device)
+    elif model_idx == 4:
+        mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
+                                    , power = 0.25).to(device)
+        state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
+	mask_model.load_state_dict('state_dict')
+        pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
+        model = two_phase_conv(mask_model,pred_model,thres = thres)
     else:
         print('model not exist')
 

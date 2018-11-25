@@ -93,12 +93,25 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
     plt.legend()
     plt.savefig(fig_dir + 'loss')
 
-def blob_loss(x, device):
-    s = torch.Tensor([0]).to(device)
-    s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
-    s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
-    s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
-    return s / x.contiguous().view(-1).size(0)
+def blob_loss(x, device, target, mask = False):
+	s = torch.Tensor([0]).to(device)
+	if not mask:
+		s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
+		s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
+		s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
+		return s/x.contiguous().view(-1).size(0)
+	else:
+		numedge = 0
+		edgeind = torch.abs(target[:,1:,:,:] - target[:,:-1,:,:])
+		s += torch.sum(edgeind.float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
+		numedge += edgeind.sum().item()
+		edgeind = torch.abs(target[:,:,1:,:] - target[:,:,:-1,:])
+		s += torch.sum(edgeind.float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
+		numedge += edgeind.sum().item()
+		edgeind = torch.abs(target[:,:,:,1:] - target[:,:,:,:-1])
+		s += torch.sum(edgeind.float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
+		numedge += edgeind.sum().item()
+		return s / numedge if numedge > 0 else 0
 
 def yfloss(weight, w, device):
     def yfloss_(pred, target):
@@ -109,7 +122,7 @@ def yfloss(weight, w, device):
         #print('outputs.size = ', outputs.size())
         outputs1 = outputs[:,1,:]
         #print('outputs1.size = ', outputs1.size())
-        loss_blob = blob_loss(outputs1, device).to(device)
+        loss_blob = blob_loss(outputs1, device, target, mask = True).to(device)
         #print('loss_blob = ', loss_blob)
         loss = loss_nn + (w * loss_blob).to(device)
         return loss
