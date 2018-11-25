@@ -226,7 +226,7 @@ class R2Unet(nn.Module):
             nn.ReLU()
         )
         return layers
-    
+
     def forward(self, x):
         x1 = self.r2cnn1(x)    
         x2 = self.maxPool(x1)  
