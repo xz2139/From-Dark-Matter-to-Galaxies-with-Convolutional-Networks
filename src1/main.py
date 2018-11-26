@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
-                        help='0:Unet, 1:baseline 2: Inception 3. R2Unet')
+                        help='0:Unet, 1:baseline 2: Inception 3. R2Unet 4.R2Unet with attention')
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
@@ -85,6 +85,7 @@ def parse_args():
                         help='whether to write the best results to all_results.txt')
     parser.add_argument('--yfloss_weight', type=float, default=0,
                         help='')
+
     return parser.parse_args()
 
 
@@ -259,16 +260,16 @@ def validate(val_loader, model, criterion, epoch, target_class, save_name):
         VAL_RECALL.append(recall)
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)
-        if val_losses.avg < BEST_VAL_LOSS:
-            if len(save_name) > 0:
-                #torch.save(model, 'pretrained/' + str(save_name) + '.pt')
-                torch.save(model.state_dict(), 'pretrained/' + str(save_name) + '.pth')
-            BEST_VAL_LOSS = val_losses.avg
-            BEST_RECALL = recall
-            BEST_PRECISION = precision
-            BEST_F1SCORE = F1score
-            BEST_ACC = acc
-    
+        
+        BEST_VAL_LOSS = val_losses.avg
+        BEST_RECALL = recall
+        BEST_PRECISION = precision
+        BEST_F1SCORE = F1score
+        BEST_ACC = acc
+    if val_losses.avg < BEST_VAL_LOSS:
+        if len(save_name) > 0:
+            #torch.save(model, 'pretrained/' + str(save_name) + '.pt')
+            torch.save(model.state_dict(), 'pretrained/' + str(save_name) + '.pth')
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
         print('Epoch {0} :Test Loss {val_losses.avg:.4f},\
@@ -350,9 +351,11 @@ def main():
         mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
                                     , power = 0.25).to(device)
         state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
-	mask_model.load_state_dict('state_dict')
+        mask_model.load_state_dict('state_dict')
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
+    elif model_idx == 5:
+        model = R2Unet_atten(dim, dim, t = 3, reg = 0).to(device)
     else:
         print('model not exist')
 
@@ -361,8 +364,8 @@ def main():
     #criterion = nn.MSELoss().to(device) #yueqiu
     #weight = torch.Tensor([0.99,0.05,0.05])
     if target_class == 0:
-        #criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
-        criterion = yfloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yfloss_weight, device = device)
+        criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
+        #criterion = yfloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yfloss_weight, device = device)
     else:
         criterion = weighted_nn_loss(loss_weight)
         #criterion = nn.MSELoss() #yueqiu

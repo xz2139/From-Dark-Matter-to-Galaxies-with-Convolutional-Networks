@@ -18,9 +18,9 @@
 #mkdir -p $RUNDIR
 # python src/main.py --medium 1 --lr 0.00001 --loss_weight 20 --model_idx 3 --epochs 8 --target_cat 'count' --target_class 0 --load_model 0 \
 # --conv1_out 52 --conv3_out 60 --conv5_out 68 --save_name 'yqloss_20_0' --record_results 0 --yfloss_weight 0 > result_3_20_0.txt
-modelidx=3
+modelidx=5
 lossweight=5
-yweight=2
-python src/main.py --medium 1 --lr 0.0001 --loss_weight $lossweight --model_idx $modelidx --epochs 12 --target_cat 'count' --target_class 0 --load_model 0 \
+yweight=0
+python src/main.py --medium1 1 --lr 0.0001 --loss_weight $lossweight --model_idx $modelidx --epochs 4 --target_cat 'count' --target_class 0 --load_model 0 \
 --save_name "" --record_results 0 --yfloss_weight $yweight > result_${modelidx}_${lossweight}_${yweight}.txt
 #model_${modelidx}_${lossweight}_${yweight}
