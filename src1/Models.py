@@ -163,6 +163,119 @@ class Inception_2(nn.Module):
 
 
 
+class UnetGating(nn.Module):
+    def __init__(self, in_size, out_size, kernel_size=(1,1,1)):
+        super(UnetGating, self).__init__()
+        self.conv1 = nn.Sequential(nn.Conv3d(in_size, out_size, kernel_size, (1,1,1), (0,0,0)),
+                                   nn.ReLU(inplace=True),
+                                   )
+
+    def forward(self, inputs):
+        outputs = self.conv1(inputs)
+        return outputs
+
+class GridAttentionBlock3D(nn.Module):
+    def __init__(self, in_channels, gating_channels, inter_channels=None, dimension=3, mode='concatenation',
+                 sub_sample_factor=(2,2,2)):
+        super(GridAttentionBlock3D, self).__init__()
+
+        assert dimension in [2, 3]
+        assert mode in ['concatenation', 'concatenation_debug', 'concatenation_residual']
+
+        # Downsampling rate for the input featuremap
+        if isinstance(sub_sample_factor, tuple): self.sub_sample_factor = sub_sample_factor
+        elif isinstance(sub_sample_factor, list): self.sub_sample_factor = tuple(sub_sample_factor)
+        else: self.sub_sample_factor = tuple([sub_sample_factor]) * dimension
+
+        # Default parameter set
+        self.mode = mode
+        self.dimension = dimension
+        self.sub_sample_kernel_size = self.sub_sample_factor
+
+        # Number of channels (pixel dimensions)
+        self.in_channels = in_channels
+        self.gating_channels = gating_channels
+        self.inter_channels = inter_channels
+
+        if self.inter_channels is None:
+            self.inter_channels = in_channels // 2
+            if self.inter_channels == 0:
+                self.inter_channels = 1
+
+        if dimension == 3:
+            conv_nd = nn.Conv3d
+            bn = nn.BatchNorm3d
+            self.upsample_mode = 'trilinear'
+        elif dimension == 2:
+            conv_nd = nn.Conv2d
+            bn = nn.BatchNorm2d
+            self.upsample_mode = 'bilinear'
+        else:
+            raise NotImplemented
+
+        # Output transform
+        self.W = nn.Sequential(
+            conv_nd(in_channels=self.in_channels, out_channels=self.in_channels, kernel_size=1, stride=1, padding=0),
+            bn(self.in_channels),
+        )
+
+        # Theta^T * x_ij + Phi^T * gating_signal + bias
+        self.theta = conv_nd(in_channels=self.in_channels, out_channels=self.inter_channels,
+                             kernel_size=self.sub_sample_kernel_size, stride=self.sub_sample_factor, padding=0, bias=False)
+        self.phi = conv_nd(in_channels=self.gating_channels, out_channels=self.inter_channels,
+                           kernel_size=1, stride=1, padding=0, bias=True)
+        self.psi = conv_nd(in_channels=self.inter_channels, out_channels=1, kernel_size=1, stride=1, padding=0, bias=True)
+
+#         # Initialise weights
+#         for m in self.children():
+#             init_weights(m, init_type='kaiming')
+
+        # Define the operation
+        if mode == 'concatenation':
+            self.operation_function = self._concatenation
+        elif mode == 'concatenation_debug':
+            self.operation_function = self._concatenation_debug
+        elif mode == 'concatenation_residual':
+            self.operation_function = self._concatenation_residual
+        else:
+            raise NotImplementedError('Unknown operation function.')
+
+
+    def forward(self, x, g):
+        '''
+        :param x: (b, c, t, h, w)
+        :param g: (b, g_d)
+        :return:
+        '''
+
+        output = self.operation_function(x, g)
+        return output
+
+    def _concatenation(self, x, g):
+        input_size = x.size()
+        batch_size = input_size[0]
+        assert batch_size == g.size(0)
+
+        # theta => (b, c, t, h, w) -> (b, i_c, t, h, w) -> (b, i_c, thw)
+        # phi   => (b, g_d) -> (b, i_c)
+        theta_x = self.theta(x)
+        theta_x_size = theta_x.size()
+
+        # g (b, c, t', h', w') -> phi_g (b, i_c, t', h', w')
+        #  Relu(theta_x + phi_g + bias) -> f = (b, i_c, thw) -> (b, i_c, t/s1, h/s2, w/s3)
+        phi_g = F.upsample(self.phi(g), size=theta_x_size[2:], mode=self.upsample_mode)
+        f = F.relu(theta_x + phi_g, inplace=True)
+
+        #  psi^T * f -> (b, psi_i_c, t/s1, h/s2, w/s3)
+        sigm_psi_f = F.sigmoid(self.psi(f))
+
+        # upsample the attentions and multiply
+        sigm_psi_f = F.upsample(sigm_psi_f, size=input_size[2:], mode=self.upsample_mode)
+        y = sigm_psi_f.expand_as(x) * x
+        W_y = self.W(y)
+
+        return W_y, sigm_psi_f
+    
 class Recurrent_Conv(nn.Module):
 	def __init__(self, out_channels, t):
 		super(Recurrent_Conv, self).__init__()
@@ -198,6 +311,7 @@ class R2CNN(nn.Module):
 		return x+x1
 
 class R2Unet(nn.Module):
+<<<<<<< HEAD
 	def __init__(self, in_channels, out_channels, t, reg = 0, sharpening = False):
 		super(R2Unet, self).__init__()
 		self.reg = reg
@@ -253,6 +367,72 @@ class R2Unet(nn.Module):
 			x14 = self.sharp_filter(x14)
 		return x14
 	
+=======
+    def __init__(self, in_channels, out_channels, t, reg = 0):
+        super(R2Unet, self).__init__()
+        self.reg = reg
+        self.in_ch= in_channels
+        self.out_ch = out_channels
+        self.t = t
+        self.avgPool = nn.AvgPool3d(2)
+        self.maxPool = nn.MaxPool3d(2)
+        self.r2cnn1 = R2CNN(self.in_ch, 32, 2)
+        self.r2cnn2 = R2CNN(32, 64, 2)
+        self.r2cnn3 = R2CNN(64, 128, 2)
+        self.r2cnn4 = R2CNN(128, 256, 2)
+        self.up_conv1 = self.up_conv_layer(256, 128, 3, 2, 1, 1)     
+        self.r2cnn5 = R2CNN(256, 64, 2)
+        self.up_conv2 = self.up_conv_layer(64, 64, 3, 2, 1, 1)
+        self.r2cnn6 = R2CNN(128, 32, 2)
+        self.up_conv3 = self.up_conv_layer(32, 32, 3, 2, 1, 1)
+        self.r2cnn7 = R2CNN(32, 16, 2)
+    
+        if self.reg == 0:
+            self.conv11 = nn.Conv3d(16, 2, kernel_size = 1, stride=1, padding=0)
+        else:
+            self.conv11 = nn.Conv3d(16, 1, kernel_size = 1, stride=1, padding=0)
+        
+    
+        self.gating_layer = UnetGating(256, 128).to(device)
+        
+        self.attn1 = GridAttentionBlock3D(in_channels=128, gating_channels=128)
+        self.attn2 = GridAttentionBlock3D(in_channels=64, gating_channels=128)
+        
+    def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=3, padding=1, output_padding=1, bias=True):
+        layers = nn.Sequential(
+            nn.ConvTranspose3d(in_channels,out_channels, kernel_size=kernel_size, stride=stride, padding=padding,output_padding=output_padding, bias=True),
+            nn.ReLU()
+        )
+        return layers
+
+    def forward(self, x):
+        x1 = self.r2cnn1(x)    #32
+        x2 = self.maxPool(x1)  #32
+        x3 = self.r2cnn2(x2)   #64
+        x4 = self.maxPool(x3)  #64
+        x5 = self.r2cnn3(x4)   #128
+        x6 = self.maxPool(x5)  #128
+        x7 = self.r2cnn4(x6)   #256
+        gating = self.gating_layer(x7) #128 
+        x8 = self.up_conv1(x7) #128
+        #new
+        x5_atted, _ = self.attn1(x5, gating) #128
+        x8 = torch.cat((x5_atted, x8), dim = 1) #256
+        x9 = self.r2cnn5(x8)  #64
+        x10 = self.up_conv2(x9) #64
+        #new
+        x3_atted, _ = self.attn2(x3, gating) #64
+        x10 = torch.cat((x3_atted, x10), dim = 1) #128
+        x11 = self.r2cnn6(x10) #32
+        x12 = self.up_conv3(x11)
+        #x12 = torch.cat((x1, x12), dim = 1)
+        x13 = self.r2cnn7(x12)
+        x14 = self.conv11(x13)
+        if self.reg:
+            x14 = x14.squeeze(1)
+        return x14
+        
+>>>>>>> 51f463e50b0f5819417e5441e4472d743f8540d0
 
 class one_layer_conv(nn.Module):
 	def __init__(self,in_channels, one_layer_outchannel, kernel_size, non_linearity, transformation, power):
