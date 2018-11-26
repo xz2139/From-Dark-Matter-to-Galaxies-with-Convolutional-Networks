@@ -431,6 +431,7 @@ class R2Unet_atten(nn.Module):
         if self.reg:
             x14 = x14.squeeze(1)
         return x14
+
 class one_layer_conv(nn.Module):
     def __init__(self,in_channels, one_layer_outchannel, kernel_size, non_linearity, transformation, power):
         super(one_layer_conv,self).__init__()
@@ -465,16 +466,17 @@ class one_layer_conv(nn.Module):
     
 
 class two_phase_conv(nn.Module):
-    def __init__(self,first_pmodel,second_pmodel, threshold =0.5):
+    def __init__(self,first_pmodel,second_pmodel, thres =0.5):
         super(two_phase_conv,self).__init__()
         self.fp = first_pmodel
         for param in self.fp.parameters():
             param.requires_grad = False
         self.sp = second_pmodel
-        self.thres = threshold
+        self.thres = thres
     
     def forward(self,X):
         mask_value = self.fp(X)
-        mask_value = mask_value > self.thres
+        mask_value = (mask_value > self.thres).float().squeeze(1)
         result = mask_value * self.sp(X)
+        print(result.shape)
         return result
