@@ -37,357 +37,359 @@ BEST_F1SCORE = 0
 BEST_ACC = 0
 EPSILON = 1e-5
 if not os.path.exists('pretrained'):
-        os.makedirs('pretrained')
+		os.makedirs('pretrained')
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="main.py")
+	parser = argparse.ArgumentParser(description="main.py")
 
-    
-    parser.add_argument('--mini', type=int, default=0,
-                        help='whether to use mini dataset.')
-    parser.add_argument('--medium1', type=int, default=0,
-                        help='whether to use medium dataset.(2% of the data)')
-    parser.add_argument('--medium', type=int, default=0,
-                        help='whether to use medium dataset.(12.5% of the data)')
-    parser.add_argument('--weight_decay', type=float, default=0.0,
-                        help='')
-    parser.add_argument('--print_freq', type=int, default=400,
-                        help='')
-    parser.add_argument('--lr', type=float, default=0.001,
-                        help='learning rate')
-    parser.add_argument('--model_idx', type=int, default=0,
-                        help='0:Unet, 1:baseline 2: Inception 3. R2Unet')
-    parser.add_argument('--epochs', type=int, default=20,
-                        help='number of epochs')
-    parser.add_argument('--batch_size', type=int, default=16,
-                        help='Batch size.')
-    parser.add_argument('--loss_weight', type=int, default=20,
-                        help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
-    parser.add_argument('--target_cat', default='count',
-                        help='the target cube we want to predict, count or mass')
-    parser.add_argument('--target_class', type = int, default= 0,
-                        help='0:classification 1:regression')
-    parser.add_argument('--plot_label', default= '',
-                        help='label for the filename of the plot. If left default, \
-                        the plot_label will be \'_\' + target_class + \'_\' + target_cat. \
-                        This label is for eliminating risk of overwriting previous plot')
-    parser.add_argument('--load_model', type=int, default=0,
-                        help='')
-    parser.add_argument('--save_name', default='',
-                        help='the name of the saved model file, default don\'t save')
-    parser.add_argument('--conv1_out', type=int, default=3,
-                        help='')
-    parser.add_argument('--conv3_out', type=int, default=4,
-                        help='')
-    parser.add_argument('--conv5_out', type=int, default=5,
-                        help='')
-    parser.add_argument('--record_results', type=int, default=0,
-                        help='whether to write the best results to all_results.txt')
-    parser.add_argument('--yfloss_weight', type=float, default=0,
-                        help='')
-    return parser.parse_args()
+	
+	parser.add_argument('--mini', type=int, default=0,
+						help='whether to use mini dataset.')
+	parser.add_argument('--medium1', type=int, default=0,
+						help='whether to use medium dataset.(2% of the data)')
+	parser.add_argument('--medium', type=int, default=0,
+						help='whether to use medium dataset.(12.5% of the data)')
+	parser.add_argument('--weight_decay', type=float, default=0.0,
+						help='')
+	parser.add_argument('--thres',type = float, default = 0.5, help = 'threshold for mask function')
+	parser.add_argument('--print_freq', type=int, default=400,
+						help='')
+	parser.add_argument('--lr', type=float, default=0.001,
+						help='learning rate')
+	parser.add_argument('--model_idx', type=int, default=0,
+						help='0:Unet, 1:baseline 2: Inception 3. R2Unet')
+	parser.add_argument('--epochs', type=int, default=20,
+						help='number of epochs')
+	parser.add_argument('--batch_size', type=int, default=16,
+						help='Batch size.')
+	parser.add_argument('--loss_weight', type=int, default=20,
+						help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
+	parser.add_argument('--target_cat', default='count',
+						help='the target cube we want to predict, count or mass')
+	parser.add_argument('--target_class', type = int, default= 0,
+						help='0:classification 1:regression')
+	parser.add_argument('--plot_label', default= '',
+						help='label for the filename of the plot. If left default, \
+						the plot_label will be \'_\' + target_class + \'_\' + target_cat. \
+						This label is for eliminating risk of overwriting previous plot')
+	parser.add_argument('--load_model', type=int, default=0,
+						help='')
+	parser.add_argument('--save_name', default='',
+						help='the name of the saved model file, default don\'t save')
+	parser.add_argument('--conv1_out', type=int, default=3,
+						help='')
+	parser.add_argument('--conv3_out', type=int, default=4,
+						help='')
+	parser.add_argument('--conv5_out', type=int, default=5,
+						help='')
+	parser.add_argument('--record_results', type=int, default=0,
+						help='whether to write the best results to all_results.txt')
+	parser.add_argument('--yfloss_weight', type=float, default=0,
+						help='')
+	return parser.parse_args()
 
 
 def initial_loss(train_loader, val_loader, model, criterion, target_class):
-    #AverageMeter is a object that record the sum, avg, count and val of the target stats
-    train_losses = AverageMeter()
-    val_losses = AverageMeter()  
-    correct = 0
-    # ptotal = 0  #count of all positive predictions
-    # tp = 0    #true positive
-    total = 0 #total count of data
-    TPRs = AverageMeter()
-    FPRs = AverageMeter()
-    # switch to train mode
-    model.eval()
-    
-    with torch.no_grad():
-        for i, (input, target) in enumerate(train_loader):
-            # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
-            input = input.unsqueeze(dim = 1).to(device).float()
-            if target_class == 0:
-                target = target.to(device).long()
-            elif target_class == 1:
-                target = target.to(device).float()
-            # compute output
-            output = model(input)
-            # print("target1: ", target.size())
-            # print("output: ", output.size())
-            loss = criterion(output, target)
-            # measure accuracy and record loss
-            train_losses.update(loss.item(), input.size(0))
+	#AverageMeter is a object that record the sum, avg, count and val of the target stats
+	train_losses = AverageMeter()
+	val_losses = AverageMeter()  
+	correct = 0
+	# ptotal = 0  #count of all positive predictions
+	# tp = 0    #true positive
+	total = 0 #total count of data
+	TPRs = AverageMeter()
+	FPRs = AverageMeter()
+	# switch to train mode
+	model.eval()
+	
+	with torch.no_grad():
+		for i, (input, target) in enumerate(train_loader):
+			# add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
+			input = input.unsqueeze(dim = 1).to(device).float()
+			if target_class == 0:
+				target = target.to(device).long()
+			elif target_class == 1:
+				target = target.to(device).float()
+			# compute output
+			output = model(input)
+			# print("target1: ", target.size())
+			# print("output: ", output.size())
+			loss = criterion(output, target)
+			# measure accuracy and record loss
+			train_losses.update(loss.item(), input.size(0))
 
-        for i, (input, target) in enumerate(val_loader):
-            # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
+		for i, (input, target) in enumerate(val_loader):
+			# add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
 
-            input = input.unsqueeze(dim = 1).to(device).float()
-            if target_class == 0:
-                target = target.to(device).long()
-            elif target_class == 1:
-                target = target.to(device).float()
-            # compute output
-            output = model(input)
-            loss = criterion(output, target)
-            # measure accuracy and record loss
-            val_losses.update(loss.item(), input.size(0))
-            if target_class == 0:
-                outputs = F.softmax(output, dim=1)
-                predicted = outputs.max(1)[1]
-                total += np.prod(target.shape)
-                correct += predicted.eq(target.view_as(predicted)).sum().item()
-                #ptotal += (target.view_as(predicted) >= 1).sum().item()
-                #tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted)>= 1)).sum().item()
-                TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
-                TPRs.update(TPR,gp)
-                FPRs.update(FPR,gf)            
-            loss = criterion(output, target)
-            # measure accuracy and record loss
-            val_losses.update(loss.item(), input.size(0))  
+			input = input.unsqueeze(dim = 1).to(device).float()
+			if target_class == 0:
+				target = target.to(device).long()
+			elif target_class == 1:
+				target = target.to(device).float()
+			# compute output
+			output = model(input)
+			loss = criterion(output, target)
+			# measure accuracy and record loss
+			val_losses.update(loss.item(), input.size(0))
+			if target_class == 0:
+				outputs = F.softmax(output, dim=1)
+				predicted = outputs.max(1)[1]
+				total += np.prod(target.shape)
+				correct += predicted.eq(target.view_as(predicted)).sum().item()
+				#ptotal += (target.view_as(predicted) >= 1).sum().item()
+				#tp += torch.mul(predicted.eq(target.view_as(predicted)),(target.view_as(predicted)>= 1)).sum().item()
+				TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
+				TPRs.update(TPR,gp)
+				FPRs.update(FPR,gf)            
+			loss = criterion(output, target)
+			# measure accuracy and record loss
+			val_losses.update(loss.item(), input.size(0))  
 
-    # recall =  tp/ptotal*100  #recall = true positive / count of all positive predictions  
-    if target_class == 0:
-        acc = correct/total*100
-        recall = TPRs.avg * 100
-        precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100  
-        VAL_RECALL.append(recall)
-        VAL_ACC.append(acc)
-        VAL_PRECISION.append(precision)  
+	# recall =  tp/ptotal*100  #recall = true positive / count of all positive predictions  
+	if target_class == 0:
+		acc = correct/total*100
+		recall = TPRs.avg * 100
+		precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100  
+		VAL_RECALL.append(recall)
+		VAL_ACC.append(acc)
+		VAL_PRECISION.append(precision)  
 
-    TRAIN_LOSS.append(train_losses.avg)
-    VAL_LOSS.append(val_losses.avg)
-    if target_class == 0:
-        print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f},\
-         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format(train_losses = train_losses, \
-            val_losses=val_losses,acc=acc, recall = recall, precision = precision))
-    else:
-        print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f}'\
-            .format(train_losses = train_losses, val_losses=val_losses))
+	TRAIN_LOSS.append(train_losses.avg)
+	VAL_LOSS.append(val_losses.avg)
+	if target_class == 0:
+		print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f},\
+		 Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f}\t'.format(train_losses = train_losses, \
+			val_losses=val_losses,acc=acc, recall = recall, precision = precision))
+	else:
+		print('Epoch Train Loss {train_losses.avg:.4f}, Test Loss {val_losses.avg:.4f}'\
+			.format(train_losses = train_losses, val_losses=val_losses))
 
 def train(train_loader, model, criterion, optimizer, epoch, print_freq, target_class):
 
 
-    batch_time = AverageMeter()
-    losses = AverageMeter()
-    data_time = AverageMeter()
+	batch_time = AverageMeter()
+	losses = AverageMeter()
+	data_time = AverageMeter()
 
 
-    # switch to train mode
-    model.train()
+	# switch to train mode
+	model.train()
 
-    end = time.time()
-    for i, (input, target) in enumerate(train_loader):
-        # measure data loading time
-        data_time.update(time.time() - end)
+	end = time.time()
+	for i, (input, target) in enumerate(train_loader):
+		# measure data loading time
+		data_time.update(time.time() - end)
 
-        # add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
-        input = input.unsqueeze(dim = 1).to(device).float()
-        if target_class == 0:
-            target = target.to(device).long()
-        elif target_class == 1:
-            target = target.to(device).float()
-        # compute output
-        output = model(input)
+		# add a dimension, from (1, 32, 32, 32) to (1,1,32,32,32)
+		input = input.unsqueeze(dim = 1).to(device).float()
+		if target_class == 0:
+			target = target.to(device).long()
+		elif target_class == 1:
+			target = target.to(device).float()
+		# compute output
+		output = model(input)
 
-        #print(torch.nonzero(target).size())
-        loss = criterion(output, target)
-        # measure accuracy and record loss
-        losses.update(loss.item(), input.size(0))
+		#print(torch.nonzero(target).size())
+		loss = criterion(output, target)
+		# measure accuracy and record loss
+		losses.update(loss.item(), input.size(0))
 
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+		# compute gradient and do SGD step
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
 
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
+		# measure elapsed time
+		batch_time.update(time.time() - end)
+		end = time.time()
 
-        if i % print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses))
-    TRAIN_LOSS.append(losses.avg)
-    print('Epoch {0} : Train: Loss {loss.avg:.4f}\t'.format(epoch, loss=losses))
-    
+		if i % print_freq == 0:
+			print('Epoch: [{0}][{1}/{2}]\t'
+				  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+				  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
+				   epoch, i, len(train_loader), batch_time=batch_time,
+				   data_time=data_time, loss=losses))
+	TRAIN_LOSS.append(losses.avg)
+	print('Epoch {0} : Train: Loss {loss.avg:.4f}\t'.format(epoch, loss=losses))
+	
 
 
 def validate(val_loader, model, criterion, epoch, target_class, save_name):
-    global BEST_VAL_LOSS
-    global BEST_RECALL
-    global BEST_PRECISION
-    global BEST_F1SCORE
-    global BEST_ACC
-    batch_time = AverageMeter()
-    val_losses = AverageMeter()
-    TPRs = AverageMeter()
-    FPRs = AverageMeter()  
-    total = 0
-    correct = 0
-    model.eval()
-    with torch.no_grad():
-        end = time.time()
-        for i, (input, target) in enumerate(val_loader):
-            input = input.unsqueeze(dim = 1).to(device).float()
-            if target_class == 0:
-                target = target.to(device).long()
-            elif target_class == 1:
-                target = target.to(device).float()
-            
-            
-            # compute output
-            output = model(input)
-            if target_class == 0:
-                outputs = F.softmax(output, dim=1)
-                predicted = outputs.max(1)[1]
-                total += np.prod(target.shape)
-                correct += predicted.eq(target.view_as(predicted)).sum().item()
-                TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
-                TPRs.update(TPR,gp)
-                FPRs.update(FPR,gf)
-            loss = criterion(output, target)
-            # measure accuracy and record loss
-            val_losses.update(loss.item(), input.size(0))
+	global BEST_VAL_LOSS
+	global BEST_RECALL
+	global BEST_PRECISION
+	global BEST_F1SCORE
+	global BEST_ACC
+	batch_time = AverageMeter()
+	val_losses = AverageMeter()
+	TPRs = AverageMeter()
+	FPRs = AverageMeter()  
+	total = 0
+	correct = 0
+	model.eval()
+	with torch.no_grad():
+		end = time.time()
+		for i, (input, target) in enumerate(val_loader):
+			input = input.unsqueeze(dim = 1).to(device).float()
+			if target_class == 0:
+				target = target.to(device).long()
+			elif target_class == 1:
+				target = target.to(device).float()
+			
+			
+			# compute output
+			output = model(input)
+			if target_class == 0:
+				outputs = F.softmax(output, dim=1)
+				predicted = outputs.max(1)[1]
+				total += np.prod(target.shape)
+				correct += predicted.eq(target.view_as(predicted)).sum().item()
+				TPR, gp, FPR, gf = confusion_matrix_calc(predicted,target)
+				TPRs.update(TPR,gp)
+				FPRs.update(FPR,gf)
+			loss = criterion(output, target)
+			# measure accuracy and record loss
+			val_losses.update(loss.item(), input.size(0))
 
-    
-    if target_class == 0:
-        recall = TPRs.avg * 100
-        precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100
-        F1score = 2*((precision*recall)/(precision+recall+ EPSILON))
-        acc = correct/total*100
-        VAL_RECALL.append(recall)
-        VAL_ACC.append(acc)
-        VAL_PRECISION.append(precision)
-        if val_losses.avg < BEST_VAL_LOSS:
-            if len(save_name) > 0:
-                #torch.save(model, 'pretrained/' + str(save_name) + '.pt')
-                torch.save(model.state_dict(), 'pretrained/' + str(save_name) + '.pth')
-            BEST_VAL_LOSS = val_losses.avg
-            BEST_RECALL = recall
-            BEST_PRECISION = precision
-            BEST_F1SCORE = F1score
-            BEST_ACC = acc
-    
-    VAL_LOSS.append(val_losses.avg)
-    if target_class == 0:
-        print('Epoch {0} :Test Loss {val_losses.avg:.4f},\
-         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format(epoch, \
-            val_losses=val_losses,acc=acc, recall = recall, precision = precision, F1score = F1score))
-    else:
-        print('Epoch {0} : Test Loss {val_losses.avg:.4f}'\
-            .format(epoch, val_losses=val_losses))
+	
+	if target_class == 0:
+		recall = TPRs.avg * 100
+		precision = TPRs.sum/(TPRs.sum + FPRs.sum + EPSILON) * 100
+		F1score = 2*((precision*recall)/(precision+recall+ EPSILON))
+		acc = correct/total*100
+		VAL_RECALL.append(recall)
+		VAL_ACC.append(acc)
+		VAL_PRECISION.append(precision)
+		if val_losses.avg < BEST_VAL_LOSS:
+			if len(save_name) > 0:
+				#torch.save(model, 'pretrained/' + str(save_name) + '.pt')
+				torch.save(model.state_dict(), 'pretrained/' + str(save_name) + '.pth')
+			BEST_VAL_LOSS = val_losses.avg
+			BEST_RECALL = recall
+			BEST_PRECISION = precision
+			BEST_F1SCORE = F1score
+			BEST_ACC = acc
+	
+	VAL_LOSS.append(val_losses.avg)
+	if target_class == 0:
+		print('Epoch {0} :Test Loss {val_losses.avg:.4f},\
+		 Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format(epoch, \
+			val_losses=val_losses,acc=acc, recall = recall, precision = precision, F1score = F1score))
+	else:
+		print('Epoch {0} : Test Loss {val_losses.avg:.4f}'\
+			.format(epoch, val_losses=val_losses))
 
 def main():
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+	device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    args = parse_args()
-    print("arguments: %s" %(args))
-    mini = args.mini
-    medium = args.medium
-    medium1 = args.medium1
-    lr = args.lr
-    model_idx = args.model_idx
-    epochs = args.epochs
-    batch_size = args.batch_size
-    loss_weight = args.loss_weight
-    weight_decay = args.weight_decay
-    print_freq = args.print_freq
-    target_cat = args.target_cat
-    target_class = args.target_class
-    plot_label = args.plot_label
-    load_model = args.load_model
-    save_name = args.save_name
-    conv1_out, conv3_out, conv5_out = args.conv1_out, args.conv3_out, args.conv5_out
-    record_results = args.record_results
-    yfloss_weight = torch.Tensor([args.yfloss_weight]).to(device)
-    #index for the cube, each tuple corresponds to a cude
-    #test data
-    if mini:
-        train_data = [(832, 640, 224),(864, 640, 224)]
-        val_data = [(832, 640, 224),(864, 640, 224)]
-        test_data = [(832, 640, 224),(864, 640, 224)]
-    else:
-        if medium1:
-            data_range = 130
-        elif medium:
-            data_range = 512
-        else:
-            data_range = 1024
+	args = parse_args()
+	print("arguments: %s" %(args))
+	mini = args.mini
+	medium = args.medium
+	medium1 = args.medium1
+	lr = args.lr
+	thres = args.thres
+	model_idx = args.model_idx
+	epochs = args.epochs
+	batch_size = args.batch_size
+	loss_weight = args.loss_weight
+	weight_decay = args.weight_decay
+	print_freq = args.print_freq
+	target_cat = args.target_cat
+	target_class = args.target_class
+	plot_label = args.plot_label
+	load_model = args.load_model
+	save_name = args.save_name
+	conv1_out, conv3_out, conv5_out = args.conv1_out, args.conv3_out, args.conv5_out
+	record_results = args.record_results
+	yfloss_weight = torch.Tensor([args.yfloss_weight]).to(device)
+	#index for the cube, each tuple corresponds to a cude
+	#test data
+	if mini:
+		train_data = [(832, 640, 224),(864, 640, 224)]
+		val_data = [(832, 640, 224),(864, 640, 224)]
+		test_data = [(832, 640, 224),(864, 640, 224)]
+	else:
+		if medium1:
+			data_range = 130
+		elif medium:
+			data_range = 512
+		else:
+			data_range = 1024
 
-        pos=list(np.arange(0,data_range,32))
-        ranges=list(product(pos,repeat=3))
-        random.seed(7)
-        random.shuffle(ranges)
-        train_data = ranges[:int(np.round(len(ranges)*0.6))]
-        val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
-        test_data = ranges[int(np.round(len(ranges)*0.8)):]
+		pos=list(np.arange(0,data_range,32))
+		ranges=list(product(pos,repeat=3))
+		random.seed(7)
+		random.shuffle(ranges)
+		train_data = ranges[:int(np.round(len(ranges)*0.6))]
+		val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
+		test_data = ranges[int(np.round(len(ranges)*0.8)):]
 
-    # #build dataloader
-    params = {'batch_size': batch_size,
-          'shuffle': True,
-          'num_workers':20}
+	# #build dataloader
+	params = {'batch_size': batch_size,
+		  'shuffle': True,
+		  'num_workers':20}
 
-    training_set, validation_set = Dataset(train_data,cat = target_cat,reg = target_class), Dataset(val_data, cat = target_cat,reg = target_class)
-    testing_set= Dataset(test_data, cat= target_cat, reg = target_class)
-    training_generator = data.DataLoader(training_set, **params)
-    validation_generator = data.DataLoader(validation_set, **params)
-    testing_generator = data.DataLoader(testing_set, **params)
+	training_set, validation_set = Dataset(train_data,cat = target_cat,reg = target_class), Dataset(val_data, cat = target_cat,reg = target_class)
+	testing_set= Dataset(test_data, cat= target_cat, reg = target_class)
+	training_generator = data.DataLoader(training_set, **params)
+	validation_generator = data.DataLoader(validation_set, **params)
+	testing_generator = data.DataLoader(testing_set, **params)
 
-    # #set up device
+	# #set up device
 
-    # #build model
-    dim = 1
-    if model_idx == 0:
-        model = SimpleUnet(dim, target_class).to(device)
-    elif model_idx == 1:
-        model = Baseline(dim, dim).to(device)
-    elif model_idx == 2:
-        model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
-    elif model_idx == 3:
-        model = R2Unet(dim, dim, t = 3, reg = target_class).to(device)
-    elif model_idx == 4:
-        mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
-                                    , power = 0.25).to(device)
-        state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
-	mask_model.load_state_dict('state_dict')  
-        pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
-        model = two_phase_conv(mask_model,pred_model,thres = thres)
-    else:
-        print('model not exist')
+	# #build model
+	dim = 1
+	if model_idx == 0:
+		model = SimpleUnet(dim, target_class).to(device)
+	elif model_idx == 1:
+		model = Baseline(dim, dim).to(device)
+	elif model_idx == 2:
+		model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
+	elif model_idx == 3:
+		model = R2Unet(dim, dim, t = 3, reg = target_class).to(device)
+	elif model_idx == 4:
+		mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
+									, power = 0.25).to(device)
+		state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
+		mask_model.load_state_dict(state_dict)  
+		pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
+		model = two_phase_conv(mask_model,pred_model,thres = thres)
+	else:
+		print('model not exist')
 
-    if load_model:
-        model = torch.load('pretrained/mytraining.pt')
-    #criterion = nn.MSELoss().to(device) #yueqiu
-    #weight = torch.Tensor([0.99,0.05,0.05])
-    if target_class == 0:
-        #criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
-        criterion = yfloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yfloss_weight, device = device)
-    else:
-        criterion = weighted_nn_loss(loss_weight)
-        #criterion = nn.MSELoss() #yueqiu
+	if load_model:
+		model = torch.load('pretrained/mytraining.pt')
+	#criterion = nn.MSELoss().to(device) #yueqiu
+	#weight = torch.Tensor([0.99,0.05,0.05])
+	if target_class == 0:
+		#criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
+		criterion = yfloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yfloss_weight, device = device)
+	else:
+		criterion = weighted_nn_loss(loss_weight)
+		#criterion = nn.MSELoss() #yueqiu
 
 
-    optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
-    initial_loss(training_generator, validation_generator, model, criterion, target_class)
+	optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
+	initial_loss(training_generator, validation_generator, model, criterion, target_class)
 
-    for epoch in range(epochs):
-        adjust_learning_rate(lr, optimizer, epoch)
-        train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
-        #evaluate on validation set
-        validate(validation_generator, model, criterion, epoch, target_class = target_class, save_name = save_name)
-    if len(plot_label) == 0:
-        plot_label = '_' + str(target_class) + '_' + str(model_idx) + '_'
-    train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION, target_class, plot_label = plot_label)
-    if target_class == 0:
-        if record_results:
-            args = parse_args()
-            f= open("all_results","a+")
-            f.write("arguments: %s" %(args) + '\n')
-            f.write('Test Loss {BEST_VAL_LOSS:.4f},  Test Accuracy {BEST_ACC:.4f},  Test Recall {BEST_RECALL:.4f},  \
-            Precision {BEST_PRECISION:.4f}   F1 score  {BEST_F1SCORE:.4f}\n'.format( \
-                        BEST_VAL_LOSS=BEST_VAL_LOSS,BEST_ACC=BEST_ACC, BEST_RECALL = BEST_RECALL, BEST_PRECISION = BEST_PRECISION, BEST_F1SCORE =  BEST_F1SCORE))
-            f.close() 
+	for epoch in range(epochs):
+		adjust_learning_rate(lr, optimizer, epoch)
+		train(training_generator, model, criterion, optimizer, epoch, print_freq, target_class = target_class)
+		#evaluate on validation set
+		validate(validation_generator, model, criterion, epoch, target_class = target_class, save_name = save_name)
+	if len(plot_label) == 0:
+		plot_label = '_' + str(target_class) + '_' + str(model_idx) + '_'
+	train_plot(TRAIN_LOSS,VAL_LOSS, VAL_ACC, VAL_RECALL, VAL_PRECISION, target_class, plot_label = plot_label)
+	if target_class == 0:
+		if record_results:
+			args = parse_args()
+			f= open("all_results","a+")
+			f.write("arguments: %s" %(args) + '\n')
+			f.write('Test Loss {BEST_VAL_LOSS:.4f},  Test Accuracy {BEST_ACC:.4f},  Test Recall {BEST_RECALL:.4f},  \
+			Precision {BEST_PRECISION:.4f}   F1 score  {BEST_F1SCORE:.4f}\n'.format( \
+						BEST_VAL_LOSS=BEST_VAL_LOSS,BEST_ACC=BEST_ACC, BEST_RECALL = BEST_RECALL, BEST_PRECISION = BEST_PRECISION, BEST_F1SCORE =  BEST_F1SCORE))
+			f.close() 
 
 if __name__ == '__main__':
-    main()
+	main()
