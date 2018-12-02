@@ -18,8 +18,9 @@ module purge
 #mkdir -p $RUNDIR
 #module load python3/intel/3.6.3
 #source /home/yw1007/myenv/bin/activate
-modelidx=5
+modelidx=6
 lossweight=30
 yweight=0
-python src/main.py --lr 0.0005 --loss_weight $lossweight --model_idx $modelidx --epochs 16 --target_cat 'count' --target_class 0 --load_model 0 \
---save_name "model_full_${modelidx}_${lossweight}_${yweight}" --record_results 0 --yfloss_weight $yweight > result_full_${modelidx}_${lossweight}_${yweight}_0.0005.txt
+python src/main.py --lr 0.001 --loss_weight $lossweight --model_idx $modelidx --epochs 16 --target_cat 'count' --target_class 0 --load_model 0 \
+--save_name "model_full_${modelidx}_${lossweight}_${yweight}" --record_results 0 --yfloss_weight $yweight > result_full_${modelidx}_${lossweight}_${yweight}_0.001.txt
+
