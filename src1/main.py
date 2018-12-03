@@ -260,15 +260,17 @@ def validate(val_loader, model, criterion, epoch, target_class, save_name):
         VAL_RECALL.append(recall)
         VAL_ACC.append(acc)
         VAL_PRECISION.append(precision)
-        BEST_RECALL = recall
-        BEST_PRECISION = precision
-        BEST_F1SCORE = F1score
-        BEST_ACC = acc
-    BEST_VAL_LOSS = val_losses.avg
+        if val_losses.avg < BEST_VAL_LOSS:
+            BEST_RECALL = recall
+            BEST_PRECISION = precision
+            BEST_F1SCORE = F1score
+            BEST_ACC = acc
+    
     if val_losses.avg < BEST_VAL_LOSS:
         if len(save_name) > 0:
             #torch.save(model, 'pretrained/' + str(save_name) + '.pt')
             torch.save(model.state_dict(), 'pretrained/' + str(save_name) + '.pth')
+        BEST_VAL_LOSS = val_losses.avg
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
         print('Epoch {0} :Test Loss {val_losses.avg:.4f},\
@@ -353,6 +355,7 @@ def main():
         mask_model.load_state_dict('state_dict')
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
+
     elif model_idx == 6:
         model = R2Unet_atten(dim, dim, t = 3, reg = 0).to(device)
     else:
