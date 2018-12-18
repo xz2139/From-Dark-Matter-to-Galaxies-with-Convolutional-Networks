@@ -362,7 +362,7 @@ class R2Unet_atten(nn.Module):
         x8 = self.up_conv1(x7) #128
         #new
         gating_x8 = self.gating_layer_x8(x8) #128 
-        print(' gating_x8.size= ', gating_x8.size())
+        #print(' gating_x8.size= ', gating_x8.size())
         x5_atted, _ = self.attn1(x5, gating_x8) #128
         x8 = torch.cat((x5_atted, x8), dim = 1) #256
         x9 = self.r2cnn5(x8)  #64
@@ -403,8 +403,8 @@ class R2Unet(nn.Module):
             self.conv11 = nn.Conv3d(16, 2, kernel_size = 1, stride=1, padding=0)
         else:
             self.conv11 = nn.Conv3d(16, 1, kernel_size = 1, stride=1, padding=0)
-        self.sharpening = sharpening
-        self.sharp_filter = nn.Conv3d(1,1,kernel_size = 3,stride = 1, padding = 1)
+        # self.sharpening = sharpening
+        # self.sharp_filter = nn.Conv3d(1,1,kernel_size = 3,stride = 1, padding = 1)
     def up_conv_layer(self, in_channels, out_channels, kernel_size, stride=3, padding=1, output_padding=1, bias=True):
         layers = nn.Sequential(
             nn.ConvTranspose3d(in_channels,out_channels, kernel_size=kernel_size, stride=stride, padding=padding,output_padding=output_padding, bias=True),
@@ -432,8 +432,8 @@ class R2Unet(nn.Module):
         x14 = self.conv11(x13)
         if self.reg:
             x14 = x14.squeeze(1)
-        if self.sharpening:
-            x14 = self.sharp_filter(x14)
+        # if self.sharpening:
+            # x14 = self.sharp_filter(x14)
         return x14
 
 
@@ -481,7 +481,11 @@ class two_phase_conv(nn.Module):
         self.thres = thres
     
     def forward(self,X):
-        mask_value = self.fp(X)
-        mask_value = (mask_value > self.thres).float().squeeze(1)
+        output = self.fp(X)
+        outputs = F.softmax(output, dim=1)[:,1,:,:,:]
+        #print(' outputs.size= ', outputs.size())
+        mask_value = (outputs > self.thres).float()
+        #print('mask_value.size= ', mask_value.size())
+        #print(' self.sp(X).size= ', self.sp(X).size())
         result = mask_value * self.sp(X)
         return result

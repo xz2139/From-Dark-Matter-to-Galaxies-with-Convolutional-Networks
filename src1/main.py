@@ -355,9 +355,22 @@ def main():
         mask_model.load_state_dict('state_dict')
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
-
+    elif model_idx == 5:
+        dim = 1
+        mask_model = R2Unet(dim, dim, t = 3).to(device)
+        state_dict = torch.load('./pretrained/model_full_3_80.pth')
+        mask_model.load_state_dict(state_dict)
+        pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
+        model = two_phase_conv(mask_model,pred_model)
     elif model_idx == 6:
         model = R2Unet_atten(dim, dim, t = 3, reg = 0).to(device)
+    elif model_idx == 7:
+        dim = 1
+        mask_model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
+        state_dict = torch.load('./pretrained/model_full_2_80.pth')
+        mask_model.load_state_dict(state_dict)
+        pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
+        model = two_phase_conv(mask_model,pred_model)
     else:
         print('model not exist')
 
