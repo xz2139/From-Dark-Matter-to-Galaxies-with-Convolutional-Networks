@@ -364,6 +364,7 @@ def main():
         model = two_phase_conv(mask_model,pred_model)
     elif model_idx == 6:
         model = R2Unet_atten(dim, dim, t = 3, reg = 0).to(device)
+        
     elif model_idx == 7:
         dim = 1
         mask_model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
