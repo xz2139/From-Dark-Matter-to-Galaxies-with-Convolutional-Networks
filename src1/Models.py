@@ -113,7 +113,7 @@ class InceptionE(nn.Module):
 
 
 class Inception(nn.Module):
-    def __init__(self, channels, conv1_out, conv3_out, conv5_out):
+    def __init__(self, channels, conv1_out, conv3_out, conv5_out, reg = 0):
         super(Inception, self).__init__()
         self.conv1_out = conv1_out
         self.conv3_out = conv3_out
@@ -122,7 +122,12 @@ class Inception(nn.Module):
         conv_in = conv1_out + conv3_out + conv5_out + 3
         self.conv1 = BasicConv3d(conv_in, conv_in, kernel_size = 3, padding = 1)
         self.conv2 = BasicConv3d(conv_in, conv_in//2, kernel_size = 3, padding = 1)
-        self.conv3 = BasicConv3d(conv_in//2, 2, kernel_size = 1)
+        self.reg = reg
+        if self.reg:
+            dim_out = 1
+        else:
+            dim_out = 2
+        self.conv3 = BasicConv3d(conv_in//2, dim_out, kernel_size = 1)
     def forward(self, x):
         b_size = x.size(0)
         incep1 = self.incep(x)
@@ -130,6 +135,8 @@ class Inception(nn.Module):
         conv1=self.conv1(incep1)
         conv2=self.conv2(conv1) 
         conv3=self.conv3(conv2)
+        if self.reg:
+            conv3 = conv3.squeeze(1)
         return conv3
 
 

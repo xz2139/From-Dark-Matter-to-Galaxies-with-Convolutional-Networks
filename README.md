@@ -22,7 +22,7 @@
 ### --medium1 1 use 2% of of the data to train  (default 0)
 ### --print_freq 
 ### --lr  (default 0.01)
-### --model_idx 0:Unet, 1:baseline 2: Inception 3. R2Unet 4.R2Unet with attention   (default 0)
+### --model_idx 0:Unet, 1:baseline 2: Inception 3. R2Unet 4.two-phase model(classfication phase: one layer Conv, regression phase: R2Unet) 5.two-phase model(classfication phase: R2Unet, regression phase: R2Unet)   
 ### --epochs  (default 20)
 ### --batch_size  (default 16)
 ### --loss wight: weight of the loss equals to normalized [x, loss_weight * x]

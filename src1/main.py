@@ -56,12 +56,13 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
-                        help='0:Unet, 1:baseline 2: Inception 3. R2Unet 4.R2Unet with attention')
+                        help='0:Unet, 1:baseline 2: Inception 3. R2Unet 4.two-phase model(classfication phase: one layer Conv, regression phase: R2Unet)\
+                         5.two-phase model(classfication phase: R2Unet, regression phase: R2Unet)')
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size.')
-    parser.add_argument('--loss_weight', type=int, default=20,
+    parser.add_argument('--loss_weight', type=float, default=20,
                         help='weight of the loss equals to normalized [x, loss_weight * x,loss_weight * x]')
     parser.add_argument('--target_cat', default='count',
                         help='the target cube we want to predict, count or mass')
@@ -356,7 +357,6 @@ def main():
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
     elif model_idx == 5:
-        dim = 1
         mask_model = R2Unet(dim, dim, t = 3).to(device)
         state_dict = torch.load('./pretrained/model_full_3_80.pth')
         mask_model.load_state_dict(state_dict)
@@ -366,12 +366,13 @@ def main():
         model = R2Unet_atten(dim, dim, t = 3, reg = 0).to(device)
         
     elif model_idx == 7:
-        dim = 1
         mask_model = Inception(dim, conv1_out, conv3_out, conv5_out).to(device)
         state_dict = torch.load('./pretrained/model_full_2_80.pth')
         mask_model.load_state_dict(state_dict)
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model)
+    elif model_idx == 8:
+        model = Inception(dim, conv1_out, conv3_out, conv5_out, reg = target_class).to(device)
     else:
         print('model not exist')
 
