@@ -76,11 +76,11 @@ def parse_args():
                         help='')
     parser.add_argument('--save_name', default='',
                         help='the name of the saved model file, default don\'t save')
-    parser.add_argument('--conv1_out', type=int, default=3,
+    parser.add_argument('--conv1_out', type=int, default=20,
                         help='')
-    parser.add_argument('--conv3_out', type=int, default=4,
+    parser.add_argument('--conv3_out', type=int, default=30,
                         help='')
-    parser.add_argument('--conv5_out', type=int, default=5,
+    parser.add_argument('--conv5_out', type=int, default=40,
                         help='')
     parser.add_argument('--record_results', type=int, default=0,
                         help='whether to write the best results to all_results.txt')
@@ -382,6 +382,7 @@ def main():
     #weight = torch.Tensor([0.99,0.05,0.05])
     if target_class == 0:
         criterion = nn.CrossEntropyLoss(weight = get_loss_weight(loss_weight, num_class = 2)).to(device)
+        print('criterion classification')
         #criterion = yfloss(weight = get_loss_weight(loss_weight, num_class = 2).to(device), w = yfloss_weight, device = device)
     else:
         criterion = weighted_nn_loss(loss_weight)
@@ -404,7 +405,7 @@ def main():
             args = parse_args()
             f= open("all_results","a+")
             f.write("arguments: %s" %(args) + '\n')
-            f.write('Test Loss {BEST_VAL_LOSS:.4f},  Test Accuracy {BEST_ACC:.4f},  Test Recall {BEST_RECALL:.4f},  \
+            f.write('Test Loss {BEST_VAL_LOSS:.5f},  Test Accuracy {BEST_ACC:.4f},  Test Recall {BEST_RECALL:.4f},  \
             Precision {BEST_PRECISION:.4f}   F1 score  {BEST_F1SCORE:.4f}\n'.format( \
                         BEST_VAL_LOSS=BEST_VAL_LOSS,BEST_ACC=BEST_ACC, BEST_RECALL = BEST_RECALL, BEST_PRECISION = BEST_PRECISION, BEST_F1SCORE =  BEST_F1SCORE))
             f.close() 
