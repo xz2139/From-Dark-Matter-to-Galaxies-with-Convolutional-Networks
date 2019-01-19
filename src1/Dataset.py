@@ -4,7 +4,7 @@ import numpy as np
 #'count' means the count of the galaxy, and 'mass' means the mass of the galaxies.
 #when convert = 1 we have the classification problem, otherwise we have the regression problem
 class Dataset(data.Dataset):
-    def __init__(self, lists, cat = 'count', aug = False, reg = True):
+    def __init__(self, lists, cat = 'count', vel = False, aug = False, reg = True, normalize = False):
         'Initialization'
         self.IDs = lists
         if cat != 'count' and cat != 'mass':
@@ -12,6 +12,8 @@ class Dataset(data.Dataset):
         self.cat = cat
         self.aug = aug
         self.reg = reg
+        self.vel = vel
+        self.normalize = normalize
     def __len__(self):
         'Denotes the total number of samples'
         return len(self.IDs)
@@ -31,8 +33,10 @@ class Dataset(data.Dataset):
         # Select sample
         ID = self.IDs[index]
         d_box = np.load('/scratch/xz2139/cosmo_dark/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
-        #dm_mean = 5.614541471004486
-        #d_box = (d_box - dm_mean) / dm_mean
+        d_box = np.expand_dims(d_box,axis = 0)
+        if self.normalize:
+            dm_mean = 5.614541471004486
+            d_box = (d_box - dm_mean) / dm_mean
         if self.cat == 'count':
             f_box=np.load('/scratch/xz2139/cosmo_full/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
             if not self.reg:
@@ -40,12 +44,17 @@ class Dataset(data.Dataset):
                 f_box=convert(f_box)
         elif self.cat == 'mass':
             f_box=np.load('/scratch/xz2139/cosmo_mass/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
-        
+s
         if self.aug:
             dim_to_flip = tuple(np.arange(3)[np.random.choice(a= [False, True], size = 3)])
             if len(dim_to_flip) > 0:
                 d_box = np.flip(d_box,dim_to_flip)
                 f_box = np.flip(f_box,dim_to_flip)
+
+        if self.vel == True:
+            v_box=np.load('/scratch/xz2139/cosmo_velo/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
+            #print(' v_box.size= ', v_box.shape)
+            d_box = np.concatenate((d_box,v_box),axis = 0)
         return d_box,f_box
 
 
