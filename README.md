@@ -10,10 +10,11 @@
 
 ### Baseline Model: U-Net
 
-### Sample script for running classification
-`python src/main.py --medium1 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs 3 --target_cat 'count' --target_class 0 > result.txt`
-### Sample script for running regression
-`python src/main.py --medium 1 --lr 0.002 --loss_weight 20 --model_idx 0 --epochs 3 --target_cat 'mass' --target_class 1 > result_reg.txt`
+### Usage see notebook **Using and developing the code**
+### Sample script for running classification see **run_c.s**
+### Sample script for running two-phase model see **run_all.s**
+
+
 
 
 

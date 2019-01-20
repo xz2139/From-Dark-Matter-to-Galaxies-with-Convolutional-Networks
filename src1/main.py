@@ -57,7 +57,8 @@ def parse_args():
                         help='learning rate')
     parser.add_argument('--model_idx', type=int, default=0,
                         help='0:Unet, 1:baseline 2: Inception 3. R2Unet 4.two-phase model(classfication phase: one layer Conv, regression phase: R2Unet)\
-                         5.two-phase model(classfication phase: R2Unet, regression phase: R2Unet)')
+                         5.two-phase model(classfication phase: R2Unet, regression phase: R2Unet) 6. R2Unet attention \
+                         7. two-phase model(classfication phase: Inception, regression phase: R2Unet) 8. Incetion regression')
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16,
@@ -77,19 +78,21 @@ def parse_args():
     parser.add_argument('--save_name', default='',
                         help='the name of the saved model file, default don\'t save')
     parser.add_argument('--conv1_out', type=int, default=6,
-                        help='')
+                        help='number of hidden units for the size = 1 kernel')
     parser.add_argument('--conv3_out', type=int, default=8,
-                        help='')
+                        help='number of hidden units for the size = 3 kernel')
     parser.add_argument('--conv5_out', type=int, default=10,
-                        help='')
+                        help='number of hidden units for the size = 5 kernel')
     parser.add_argument('--record_results', type=int, default=0,
                         help='whether to write the best results to all_results.txt')
     parser.add_argument('--yfloss_weight', type=float, default=0,
                         help='')
     parser.add_argument('--vel', type=int, default=0,
-                        help='whether to include velocity to the input')
+                        help='whether to include velocity to the input(input dim 1 if not, 4 if yes)')
     parser.add_argument('--normalize', type=int, default=0,
-                        help='whether to normalize the input')
+                        help='whether to normalize the input(dark matter density)')
+    parser.add_argument('--C_model', default="",
+                        help='classfication model name for the two-phase model')
 
     return parser.parse_args()
 
@@ -310,7 +313,7 @@ def main():
     yfloss_weight = torch.Tensor([args.yfloss_weight]).to(device)
     vel = args.vel
     normalize = args.normalize
-
+    C_model = args.C_model
 
 
     #index for the cube, each tuple corresponds to a cude
@@ -366,16 +369,14 @@ def main():
     elif model_idx == 4:
         mask_model = one_layer_conv(dim,one_layer_outchannel = 8,kernel_size = 3,non_linearity = 'ReLU6', transformation = 'sqrt_root'
                                     , power = 0.25).to(device)
-        state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
+        #state_dict = torch.load('../trained_model/epoch_10_MSE.pth')
+        state_dict = torch.load('./pretrained/' + C_model + '.pth')
         mask_model.load_state_dict('state_dict')
         pred_model = R2Unet(dim,dim,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model,thres = thres)
     elif model_idx == 5:
         mask_model = R2Unet(dim_in, dim_out, t = 3).to(device)
-        if vel == 1:
-            state_dict = torch.load('./pretrained/model_full_3_80_1.pth')
-        else:   
-            state_dict = torch.load('./pretrained/model_full_3_80.pth')
+        state_dict = torch.load('./pretrained/' + C_model + '.pth')
         mask_model.load_state_dict(state_dict)
         pred_model = R2Unet(dim_in,dim_out,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model)
@@ -384,10 +385,8 @@ def main():
         
     elif model_idx == 7:
         mask_model = Inception(dim_in, conv1_out, conv3_out, conv5_out).to(device)
-        if vel == 1:
-            state_dict = torch.load('./pretrained/model_full_2_80_1.pth')
-        else:   
-            state_dict = torch.load('./pretrained/model_full_2_80_0.pth')
+        state_dict = torch.load('./pretrained/' + C_model + '.pth')
+
         mask_model.load_state_dict(state_dict)
         pred_model = R2Unet(dim_in,dim_out,t=3,reg = target_class).to(device)
         model = two_phase_conv(mask_model,pred_model)
