@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1 # p40 k80 p100 1080
-#SBATCH --time=18:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mem=80GB
 #SBATCH --job-name=dark
 #SBATCH --mail-type=END
@@ -36,9 +36,9 @@ target_class=1
 vel=0
 normalize=0
 #remember to remove .pth
-C_model="model_2@6@8@10_80_v0_n0"
+C_model="model_2@6@8@10_40_v0_n0"
 
-for lossweight in 0.6 1
+for lossweight in 0.6 0.8 1 1.5
 do
 
 name="${modelidx}_${lossweight}@${C_model}"
