@@ -281,12 +281,13 @@ def validate(val_loader, model, criterion, epoch, target_class, save_name):
         BEST_VAL_LOSS = val_losses.avg
     VAL_LOSS.append(val_losses.avg)
     if target_class == 0:
-        print('Epoch {0} :Test Loss {val_losses.avg:.4f},\
-         Test Accuracy {acc:.4f},  Test Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format(epoch, \
+        print('Epoch {0} :Val Loss {val_losses.avg:.4f},\
+         Val Accuracy {acc:.4f},  Val Recall {recall:.4f}\t Precision {precision:.4f} F1 score  {F1score:.4f}\t'.format(epoch, \
             val_losses=val_losses,acc=acc, recall = recall, precision = precision, F1score = F1score))
     else:
-        print('Epoch {0} : Test Loss {val_losses.avg:.4f}'\
+        print('Epoch {0} : Val Loss {val_losses.avg:.4f}'\
             .format(epoch, val_losses=val_losses))
+
 
 def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -325,19 +326,35 @@ def main():
     else:
         if medium1:
             data_range = 130
+            random_idx = 1
         elif medium:
             data_range = 512
+            random_idx = 1
         else:
             data_range = 1024
-
+            random_idx = 0
+        
         pos=list(np.arange(0,data_range,32))
         ranges=list(product(pos,repeat=3))
         random.seed(7)
-        random.shuffle(ranges)
-        train_data = ranges[:int(np.round(len(ranges)*0.6))]
-        val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
-        test_data = ranges[int(np.round(len(ranges)*0.8)):]
+        if random_idx == 1:
+            random.shuffle(ranges)
+            train_data = ranges[:int(np.round(len(ranges)*0.6))]
+            val_data=ranges[int(np.round(len(ranges)*0.6)):int(np.round(len(ranges)*0.8))]
+            test_data = ranges[int(np.round(len(ranges)*0.8)):]
+        else:
+            train_data, val_data, test_data = [],[],[]
 
+            for i in range(0,data_range,32):
+                for j in range(0,data_range,32):
+                    for k in range(0,data_range,32):
+                        idx = (i,j,k)
+                        if i <=416 and j<= 416:
+                            val_data.append(idx)
+                        elif i>=484 and j>= 448 and k>= 448:
+                            test_data.append(idx)
+                        else:
+                            train_data.append(idx)
     # #build dataloader
     params = {'batch_size': batch_size,
           'shuffle': True,

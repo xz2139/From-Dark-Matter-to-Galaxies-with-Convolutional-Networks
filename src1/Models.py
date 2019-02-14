@@ -202,31 +202,6 @@ class Inception(nn.Module):
         return conv3
 
 
-class Inception_2(nn.Module):
-    def __init__(self, channels, conv1_out, conv3_out, conv5_out, conv11_out = 25, conv12_out = 52):
-        super(Inception, self).__init__()
-        self.conv1_out = conv1_out
-        self.conv3_out = conv3_out
-        self.conv5_out = conv5_out
-        self.incep = InceptionE(channels, conv1_out = conv1_out, conv3_out = conv3_out, conv5_out = conv5_out)
-        conv_in = conv1_out + conv3_out + conv5_out + 3
-
-        self.conv21 = BasicConv3d(channels, conv1_out//2, kernel_size = 3, padding = 1)
-        self.conv21 = BasicConv3d(conv1_out//2, conv1_out, kernel_size = 3, padding = 1)
-
-        self.conv21 = BasicConv3d(conv_in, conv_in, kernel_size = 3, padding = 1)
-        self.conv22 = BasicConv3d(conv_in, conv_in//2, kernel_size = 3, padding = 1)
-        self.conv23 = BasicConv3d(conv_in//2, 2, kernel_size = 1)
-    def forward(self, x):
-        b_size = x.size(0)
-        conv11 = self.conv11(x)
-        conv12 = self.conv12(conv11)
-        branch_pool = F.avg_pool3d(x, kernel_size=3, stride=1, padding=1)
-        incep1 = self.incep(conv12)
-        conv21=self.conv21(incep1)
-        conv22=self.conv22(conv21) 
-        conv23=self.conv23(conv22)
-        return conv3
 
 
 
