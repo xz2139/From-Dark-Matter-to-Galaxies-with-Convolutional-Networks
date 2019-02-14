@@ -207,8 +207,6 @@ class Inception(nn.Module):
 
 
 
-
-
 class GridAttentionBlock3D(nn.Module):
     def __init__(self, in_channels, inter_channels=None, dimension=3, mode='concatenation',
                  sub_sample_factor=(2,2,2)):
