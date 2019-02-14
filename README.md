@@ -6,11 +6,8 @@
 
 ### Data: 6 simulations from Illustris Project
 
-### The best result will be saved to all_results(along with the hyperparameters)
+### Code Usage see notebook **Using and developing the code**
 
-### Baseline Model: U-Net
-
-### Usage see notebook **Using and developing the code**
 ### Sample script for running classification see **run_c.s**
 ### Sample script for running two-phase model see **run_all.s**
 
@@ -18,7 +15,7 @@
 
 
 
-### --mini  1 use only two cubes to train  (default 0)
+<!-- ### --mini  1 use only two cubes to train  (default 0)
 ### --medium 1 use 10% of of the data to train  (default 0)
 ### --medium1 1 use 2% of of the data to train  (default 0)
 ### --print_freq 
@@ -35,4 +32,4 @@
 ### --record_results whether to write the best results to all_results.txt
 
 ### Find the plot of trainning loss, validation loss, validation accuracy, validation recall and validation precision in the ./fig folder
-
+ -->
