@@ -4,19 +4,29 @@ import pandas as pd
 import numpy as np
 
 import os
+
+e=0.0001
+
+output_grid='/scratch/xz2139/Dark_zeros.npy'
+raw_data='/scratch/xz2139/cosmo_dark'
+out_data='/scratch/xz2139/cosmo_dark/arrays'
+
 def process(postable):
-    postable['x_b']=np.floor(postable['x']/(75000/1024))
-    postable['y_b']=np.floor(postable['y']/(75000/1024))
-    postable['z_b']=np.floor(postable['z']/(75000/1024))
+    postable['x_b']=np.floor(postable['x']/((75000+e)/1024))
+    postable['y_b']=np.floor(postable['y']/((75000+e)/1024))
+    postable['z_b']=np.floor(postable['z']/((75000+e)/1024))
     postable['x_b'] = postable['x_b'].astype(int)
     postable['y_b'] = postable['y_b'].astype(int)
     postable['z_b'] = postable['z_b'].astype(int)
     return postable
-np.save('/scratch/xz2139/Dark_zeros.npy',np.zeros((1024,1024,1024)))
-for name in sorted(os.listdir('/scratch/xz2139/cosmo_dark'))[2:]:
-    filename = '/scratch/xz2139/cosmo_dark/'+name
+
+np.save(output_grid,np.zeros((1024,1024,1024)))
+for name in sorted(os.listdir(raw_data)):
+    filename = raw_data+'/'+name
     f = h5py.File(filename, 'r')
     position=np.array(f['PartType1']['Coordinates'])
+    if len(position)==0:
+        pass
     postable=pd.DataFrame(position)
     postable.columns=(['x','y','z'])
     mergetable=process(postable) 
@@ -28,6 +38,15 @@ for name in sorted(os.listdir('/scratch/xz2139/cosmo_dark'))[2:]:
 
     counts=mergetable.groupby(['x_b','y_b','z_b'])['c'].count().reset_index(name="count")
     arr=dataframe_to_array(counts, (1024,1024,1024))
-    old_arr=np.load('/scratch/xz2139/Dark_zeros.npy')
-    np.save('/scratch/xz2139/Dark_zeros.npy',old_arr+arr)
-    print(name)
+    old_arr=np.load(output_grid)
+    np.save(output_grid,old_arr+arr)
+    print('finished: '+name)
+
+
+pos=list(np.arange(0,1024,32))
+ranges=list(product(pos,repeat=3))
+print('Generating subboxes....')
+for ID in ranges:
+    f_box=output_grid[ID[0]:ID[0]+32,ID[1]:ID[1]+32,ID[2]:ID[2]+32]
+    np.save(out_data+'/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy',f_box)
+print('All finished')

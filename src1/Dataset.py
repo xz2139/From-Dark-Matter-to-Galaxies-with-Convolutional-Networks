@@ -4,16 +4,18 @@ import numpy as np
 #'count' means the count of the galaxy, and 'mass' means the mass of the galaxies.
 #when convert = 1 we have the classification problem, otherwise we have the regression problem
 class Dataset(data.Dataset):
-    def __init__(self, lists, cat = 'count', vel = False, aug = False, reg = False, normalize = False):
+    def __init__(self, lists, cat = 'subcount', vel = False, aug = False, reg = False, normalize = False, dm_mean=0):
         'Initialization'
         self.IDs = lists
-        if cat != 'count' and cat != 'mass':
-            raise ValueError('cat not exist')
+#         if cat not in ['submass','subcount','stellarm'] :
+#             raise ValueError('cat not exist')
         self.cat = cat
         self.aug = aug
         self.reg = reg
         self.vel = vel
         self.normalize = normalize
+        self.dm_mean = dm_mean
+
     def __len__(self):
         'Denotes the total number of samples'
         return len(self.IDs)
@@ -27,7 +29,6 @@ class Dataset(data.Dataset):
             print('dark matter mass smaller than 0')
 
 
-
     def __getitem__(self, index):
         'Generates one sample of data'
         # Select sample
@@ -35,15 +36,23 @@ class Dataset(data.Dataset):
         d_box = np.load('/scratch/xz2139/cosmo_dark/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
         d_box = np.expand_dims(d_box,axis = 0)
         if self.normalize:
-            dm_mean = 5.614541471004486
+            dm_mean = self.dm_mean
             d_box = (d_box - dm_mean) / dm_mean
-        if self.cat == 'count':
+        if self.cat == 'subcount':
             f_box=np.load('/scratch/xz2139/cosmo_full/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
             if not self.reg:
                 convert= np.vectorize(self.convert_class) #Convert python function to vector function
                 f_box=convert(f_box)
-        elif self.cat == 'mass':
+        elif self.cat == 'submass':
             f_box=np.load('/scratch/xz2139/cosmo_mass/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
+        elif self.cat == 'stellarm':
+            dark_box=np.load('/scratch/xz2139/cosmo_dark/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
+            submass_box=np.load('/scratch/xz2139/cosmo_mass/arrays/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
+            f_box=np.load('/scratch/xz2139/cosmo_full/arrays_starm/'+str(ID[0])+'_'+str(ID[1])+'_'+str(ID[2])+'.npy')
+            dark_box=np.log10(dark_box+1)
+            f_box=np.log10(f_box+1)
+            submass_box=np.log10(submass_box+1)
+            return dark_box,submass_box,f_box
         if self.aug:
             dim_to_flip = tuple(np.arange(3)[np.random.choice(a= [False, True], size = 3)])
             if len(dim_to_flip) > 0:

@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import os
-from args import args
 import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.nn.functional as F
@@ -53,6 +52,7 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 #output a tensor equals to normalized [x, loss_weight * x,loss_weight * x]
+
 def get_loss_weight(loss_weight, num_class):
     piece = 1/((num_class - 1) * loss_weight + 1)
     a = [1]
@@ -93,37 +93,3 @@ def train_plot(train_loss, val_loss, val_acc, val_recall, val_precision, target_
     plt.legend()
     plt.savefig(fig_dir + 'loss')
 
-def blob_loss(x, device, target, mask = False):
-	s = torch.Tensor([0]).to(device)
-	if not mask:
-		s += torch.sum(((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 )* x[:,1:,:,:] * x[:,:-1,:,:])
-		s += torch.sum(((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ) * x[:,:,1:,:] * x[:,:,:-1,:]) 
-		s += torch.sum(((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 )* x[:,:,:,1:] * x[:,:,:,:-1])
-		return s/x.contiguous().view(-1).size(0)
-	else:
-		numedge = 0
-		edgeind = torch.abs(target[:,1:,:,:] - target[:,:-1,:,:])
-		s += torch.sum(edgeind.float() * ((1 - (x[:,1:,:,:] - x[:,:-1,:,:])) ** 2 ))
-		numedge += edgeind.sum().item()
-		edgeind = torch.abs(target[:,:,1:,:] - target[:,:,:-1,:])
-		s += torch.sum(edgeind.float() * ((1 - (x[:,:,1:,:] - x[:,:,:-1,:])) ** 2 ))
-		numedge += edgeind.sum().item()
-		edgeind = torch.abs(target[:,:,:,1:] - target[:,:,:,:-1])
-		s += torch.sum(edgeind.float() * ((1 - (x[:,:,:,1:] - x[:,:,:,:-1])) ** 2 ))
-		numedge += edgeind.sum().item()
-		return s / numedge if numedge > 0 else 0
-
-def yfloss(weight, w, device):
-    def yfloss_(pred, target):
-        criterion = nn.CrossEntropyLoss(weight = weight)
-        loss_nn = criterion(pred, target).to(device)
-        #print('loss_nn = ', loss_nn)
-        outputs = F.softmax(pred, dim=1)
-        #print('outputs.size = ', outputs.size())
-        outputs1 = outputs[:,1,:]
-        #print('outputs1.size = ', outputs1.size())
-        loss_blob = blob_loss(outputs1, device, target, mask = True).to(device)
-        #print('loss_blob = ', loss_blob)
-        loss = loss_nn + (w * loss_blob).to(device)
-        return loss
-    return yfloss_
