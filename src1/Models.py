@@ -510,9 +510,6 @@ class one_layer_conv(nn.Module):
             X = X/10
         return self.model(X)
 
-    
-    
-
 class two_phase_conv(nn.Module):
     def __init__(self,first_pmodel,second_pmodel, thres =0.5):
         super(two_phase_conv,self).__init__()
@@ -530,4 +527,21 @@ class two_phase_conv(nn.Module):
         #print('mask_value.size= ', mask_value.size())
         #print(' self.sp(X).size= ', self.sp(X).size())
         result = mask_value * self.sp(X)
-        return result
+        return result    
+    
+
+#class two_phase_conv(nn.Module):
+#    def __init__(self,first_pmodel,second_pmodel, thres =0.5):
+#        super(two_phase_conv,self).__init__()
+#        self.fp = first_pmodel
+#        for param in self.fp.parameters():
+#            param.requires_grad = False
+#        self.sp = second_pmodel
+#        self.thres = thres
+    
+#    def forward(self, X, subhalo_mass):
+
+#        mask_value = (subhalo_mass[:,0,:,:,:] > 0).float()
+ 
+#        result = mask_value * self.sp(subhalo_mass, X)
+#        return result
